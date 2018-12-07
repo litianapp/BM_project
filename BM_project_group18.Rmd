@@ -1,0 +1,19 @@
+---
+title: "BM_project_group18"
+author: Annie Clark, Keyanna Davis, Margaret Gacheru, Tian Li
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+library(broom)
+library(HH) 
+library(leaps)
+library(caret)
+library(modelr)
+library(faraway)
+```
+
+# Step 1
