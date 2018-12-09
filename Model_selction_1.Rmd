@@ -1,6 +1,5 @@
 ---
-title: "BM_project_group18"
-author: Annie Clark, Keyanna Davis, Margaret Gacheru, Tian Li
+title: "Model_selction_1"
 output: github_document
 ---
 
@@ -17,3 +16,8 @@ library(faraway)
 ```
 
 # Step 1
+
+```{r}
+
+```
+
