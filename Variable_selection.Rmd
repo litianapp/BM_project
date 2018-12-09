@@ -9,9 +9,7 @@ library(tidyverse)
 ```
 
 ```{r}
-data = read.csv("./Cancer_Registry.csv") %>% 
-  janitor::clean_names() 
-
+data = read.csv("./Cancer_Registry.csv")
 dim(data)
 ```
 
@@ -36,7 +34,7 @@ As for variable 22 (pctemployed16_over), 5% is not very high, but it has high co
 
 # Check for collinearity
 
-We can see from the definitions that some variables have similar definations. We can just use a representative one in each group.
+We can see from the definitions that some variables are similar. We can just use a representative one in each group.
 
 For example, "median income" and "median income per capita binned by decile" are similar. We can delete "[9]binnedInc".
 
