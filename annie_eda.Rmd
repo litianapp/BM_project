@@ -1,0 +1,562 @@
+---
+title: "final_project"
+author: "Annie Clark"
+date: "December 8, 2018"
+output: html_document
+---
+
+1) Lit review
+2) EDA/tidying
+3) lit review and eda to help with variable selection
+
+
+## missing values
+
+```{r}
+library(tidyverse)
+
+cancer_data = read_csv(file = "./data/Cancer_Registry.csv") %>% 
+  janitor::clean_names()
+
+names(cancer_data)
+
+cancer_data %>% 
+  filter(is.na(avg_ann_count)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(avg_deaths_per_year)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(target_death_rate)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(incidence_rate)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(med_income)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(pop_est2015)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(poverty_percent)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(study_per_cap)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(binned_inc)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(median_age)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(median_age_male)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(median_age_female)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(geography)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(avg_household_size)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(percent_married)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(pct_no_hs18_24)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(pct_hs18_24)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(pct_some_col18_24)) %>% 
+  nrow()
+
+##2285
+
+cancer_data %>% 
+  filter(is.na(pct_bach_deg18_24)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(pct_hs25_over)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(pct_private_coverage)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(pct_employed16_over)) %>% 
+  nrow()
+
+## 152
+
+cancer_data %>% 
+  filter(is.na(pct_unemployed16_over)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(pct_private_coverage)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(pct_private_coverage_alone)) %>% 
+  nrow()
+
+##609
+
+cancer_data %>% 
+  filter(is.na(pct_emp_priv_coverage)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(pct_public_coverage)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(pct_public_coverage_alone)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(pct_white)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(pct_black)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(pct_asian)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(pct_other_race)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(pct_married_households)) %>% 
+  nrow()
+
+cancer_data %>% 
+  filter(is.na(birth_rate)) %>% 
+  nrow()
+
+```
+
+variables with missing data:
+- pct_private_coverage_alone (609 missing) 20%
+- pct_employed16_over (152 missing) 5%
+- pct_some_col18_24 (2285 missing) 75%
+
+
+## correlation
+
+```{r}
+
+
+summary(cancer_data)
+
+## binned_inc - character
+## geography - character
+
+cancer_data %>% 
+  select(-binned_inc, -geography) %>% ##remove characters
+  cor() %>% 
+  as_tibble()
+
+library(corrplot)
+
+cancer_data %>% 
+  select(-binned_inc, -geography,
+         -pct_private_coverage_alone, -pct_employed16_over, -pct_some_col18_24) %>% ##remove characters
+  cor() %>% 
+  corrplot(., method = "square", insig = "blank", diag=FALSE, number.cex = .7)
+
+```
+
+There are clusters of variables that look to be correlated with other variables. 
+
+If we choose to use any other following variables, we need to check what other variables are in the model to make sure there is not a multicollinearity issue:
+
+* med_income
+* poverty_percent
+* pct_public_coverage_along
+* pct_public_coverage
+* pct_emp_priv_coverage
+* pct_private_coverage
+
+Also, noteable pairs highly correlated:
+
+* pct_black & pct_white
+* pct_married_household & avg_household_size
+... there are a dozen more
+
+
+## scatterplots of target_death_rate vs. risk factors 
+```{r}
+cancer_data %>% 
+  ggplot(aes(x = avg_ann_count, y = target_death_rate)) + 
+  geom_point()
+
+## looks like needs a log transformation
+
+cancer_data %>% 
+  ggplot(aes(x = log(avg_ann_count), y = target_death_rate)) + 
+  geom_point()
+
+## looks curvilinear
+
+
+cancer_data %>% 
+  ggplot(aes(x = avg_deaths_per_year, y = target_death_rate)) + 
+  geom_point()
+
+## looks like needs a log transformation
+
+
+cancer_data %>% 
+  ggplot(aes(x = log(avg_deaths_per_year), y = target_death_rate)) + 
+  geom_point()
+
+## still looks curvilinear
+
+
+cancer_data %>% 
+  ggplot(aes(x = incidence_rate, y = target_death_rate)) + 
+  geom_point()
+
+## linear, with some x extreme outliers
+
+cancer_data %>% 
+  ggplot(aes(x = med_income, y = target_death_rate)) + 
+  geom_point()
+
+## looks a little curvilinear -- need to do transformation
+
+cancer_data %>% 
+  ggplot(aes(x = (1/med_income), y = target_death_rate)) + 
+  geom_point()
+
+## looks linear...
+
+cancer_data %>% 
+  ggplot(aes(x = pop_est2015, y = target_death_rate)) + 
+  geom_point()
+
+## need to do log transformation
+
+cancer_data %>% 
+  ggplot(aes(x = log(pop_est2015), y = target_death_rate)) + 
+  geom_point()
+
+## still looks a little curvilinear
+
+cancer_data %>% 
+  ggplot(aes(x = poverty_percent, y = target_death_rate)) + 
+  geom_point()
+
+## looks linear
+
+cancer_data %>% 
+  ggplot(aes(x = study_per_cap, y = target_death_rate)) + 
+  geom_point()
+
+## need to do a log transformation
+
+cancer_data %>% 
+  ggplot(aes(x = log(study_per_cap), y = target_death_rate)) + 
+  geom_point()
+
+## looks linear, but also has a weird 0 varlies all along the y values
+
+cancer_data %>% 
+  ggplot(aes(x = binned_inc, y = target_death_rate)) + 
+  geom_point()
+
+## looks randomly scattered throughout the bins.. should do boxplot
+
+cancer_data %>% 
+  ggplot(aes(x = binned_inc,  y = target_death_rate)) + 
+  geom_boxplot() + 
+  theme(axis.text.x=element_text(angle=45,hjust=1)) 
+
+cancer_data %>% 
+  group_by(binned_inc) %>% 
+  summarise(n = n())
+
+## oddly a similar number of observations per bin... 
+
+cancer_data %>% 
+  ggplot(aes(x = median_age, y = target_death_rate)) + 
+  geom_point()
+
+## this looks like an issue - let's look further into median_age
+
+cancer_data %>% 
+  group_by(round(median_age)) %>% 
+  summarize(n = n()) 
+
+## there are ages that go from 22 - 65 and then from 349 - 624. This is an error with the data
+
+cancer_data %>% 
+  ggplot(aes(x = median_age_male, y = target_death_rate)) + 
+  geom_point()
+
+## looks like curvilinear, let's try transformation
+
+cancer_data %>% 
+  ggplot(aes(x = median_age_male^2, y = target_death_rate)) + 
+  geom_point()
+
+## tried ^2, ^3, inverse, log, nothing really makes it look better
+
+cancer_data %>% 
+  ggplot(aes(x = median_age_female, y = target_death_rate)) + 
+  geom_point()
+
+## similar to male median age
+
+
+cancer_data %>% 
+  ggplot(aes(x = median_age_female^2, y = target_death_rate)) + 
+  geom_point()
+
+## tried ^2, ^3, inverse, log, nothing really makes it look better
+
+
+
+cancer_data %>% 
+  ggplot(aes(x = avg_household_size, y = target_death_rate)) + 
+  geom_point()
+
+## there are a ton of 0 values; this coule potentially be a data quality issue
+
+cancer_data %>% 
+  count(avg_household_size)
+
+## it looks like there are a ton of 0.02.... not sure what this means?
+
+
+cancer_data %>% 
+  ggplot(aes(x = percent_married, y = target_death_rate)) + 
+  geom_point()
+
+## looks linear; potentially curilinear
+
+
+cancer_data %>% 
+  ggplot(aes(x = percent_married^2, y = target_death_rate)) + 
+  geom_point()
+
+## looks better
+
+cancer_data %>% 
+  ggplot(aes(x = pct_no_hs18_24, y = target_death_rate)) + 
+  geom_point()
+
+## looks linear; potentially curilinear
+
+
+cancer_data %>% 
+  ggplot(aes(x = pct_hs18_24, y = target_death_rate)) + 
+  geom_point()
+
+cancer_data %>% 
+  ggplot(aes(x = pct_some_col18_24, y = target_death_rate)) + 
+  geom_point()
+
+## linear, but missing values
+
+cancer_data %>% 
+  ggplot(aes(x = pct_bach_deg18_24, y = target_death_rate)) + 
+  geom_point()
+
+## log transformation
+
+cancer_data %>% 
+  ggplot(aes(x = log(pct_bach_deg18_24), y = target_death_rate)) + 
+  geom_point()
+
+## makes it a little better, but zero values are an issue (inverse and squared do not work)
+
+
+cancer_data %>% 
+  ggplot(aes(x = pct_hs25_over, y = target_death_rate)) + 
+  geom_point()
+
+## looks linear
+
+cancer_data %>% 
+  ggplot(aes(x = pct_bach_deg25_over, y = target_death_rate)) + 
+  geom_point()
+
+## looks a little curvilinear
+
+cancer_data %>% 
+  ggplot(aes(x = log(pct_bach_deg25_over), y = target_death_rate)) + 
+  geom_point()
+
+## looks good
+
+cancer_data %>% 
+  ggplot(aes(x = pct_employed16_over, y = target_death_rate)) + 
+  geom_point()
+
+## looks linear
+
+cancer_data %>% 
+  ggplot(aes(x = pct_unemployed16_over, y = target_death_rate)) + 
+  geom_point()
+
+## looks linear
+
+cancer_data %>% 
+  ggplot(aes(x = pct_private_coverage, y = target_death_rate)) + 
+  geom_point()
+
+## looks linear
+
+cancer_data %>% 
+  ggplot(aes(x = pct_private_coverage_alone, y = target_death_rate)) + 
+  geom_point()
+
+## looks linear
+
+cancer_data %>% 
+  ggplot(aes(x = pct_emp_priv_coverage, y = target_death_rate)) + 
+  geom_point()
+
+## looks linear but also heteroscedastic
+
+cancer_data %>% 
+  ggplot(aes(x = pct_public_coverage, y = target_death_rate)) + 
+  geom_point()
+
+## looks linear
+
+cancer_data %>% 
+  ggplot(aes(x = pct_public_coverage_alone, y = target_death_rate)) + 
+  geom_point()
+
+## looks linear
+
+cancer_data %>% 
+  ggplot(aes(x = pct_white, y = target_death_rate)) + 
+  geom_point()
+
+## log transformation needed
+
+
+cancer_data %>% 
+  ggplot(aes(x = 1/pct_white, y = target_death_rate)) + 
+  geom_point()
+
+## does not look linear, log, inverse and quadratics don't work
+
+cancer_data %>% 
+  ggplot(aes(x = pct_black, y = target_death_rate)) + 
+  geom_point()
+
+## need tranformation
+
+
+cancer_data %>% 
+  ggplot(aes(x = log(pct_black), y = target_death_rate)) + 
+  geom_point()
+
+## log looks better, but negative values may be an issue
+
+
+cancer_data %>% 
+  ggplot(aes(x = pct_asian, y = target_death_rate)) + 
+  geom_point()
+
+## need transformation
+
+cancer_data %>% 
+  ggplot(aes(x = log(pct_asian), y = target_death_rate)) + 
+  geom_point()
+
+## log looks better, but negative values may be an issue
+
+cancer_data %>% 
+  ggplot(aes(x = pct_other_race, y = target_death_rate)) + 
+  geom_point()
+
+## need transformation
+
+cancer_data %>% 
+  ggplot(aes(x = log(pct_other_race), y = target_death_rate)) + 
+  geom_point()
+
+## log looks better, but negative values may be an issue
+
+cancer_data %>% 
+  ggplot(aes(x = pct_married_households, y = target_death_rate)) + 
+  geom_point()
+
+## looks linear
+
+cancer_data %>% 
+  ggplot(aes(x = birth_rate, y = target_death_rate)) + 
+  geom_point()
+
+## data points are a cluster
+
+
+cancer_data %>% 
+  ggplot(aes(x = (birth_rate^3), y = target_death_rate)) + 
+  geom_point()
+
+## transformations don't really work
+
+```
+
+
+## Non linear variables
+
+* avg_ann_count (transformations don't work)
+* avg_deaths_per_year (transformations don't work)
+* med_income (inverse transformation worked)
+* study_per_cap (log transformation worked, but still has weird 0 values)
+* median_age_male (transformations don't work)
+* percent_married (squared works)
+* pct_no_hs18_24 (potentially curvlinear, squared/log do not work)
+* pct_bach_deg18_24 (log makes a little better, but zeros are an issue)
+* pct_bach_deg25_over (log works)
+* pct_white (transformation don't work)
+* pct_black (log works, but negative values clustered)
+* pct_asian (log works, but negative values clustered)
+* birth_rate (all values are clustered)
+
+
+## Variables with data quality concerns
+
+* median_age (median ages of 300 - 600)
+
+
+## Other things to note:
+
+* incidence_rate has some extreme x outliers
+* avg_household_size lots of median households of 0.02 size... not sure what this means
