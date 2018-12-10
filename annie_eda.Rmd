@@ -2,7 +2,7 @@
 title: "final_project"
 author: "Annie Clark"
 date: "December 8, 2018"
-output: html_document
+output: github_document
 ---
 
 1) Lit review
