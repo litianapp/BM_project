@@ -1,5 +1,5 @@
 ---
-title: "Model_selction_1"
+title: "Model_selection_1"
 output: github_document
 ---
 
