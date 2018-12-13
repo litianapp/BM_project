@@ -8,18 +8,6 @@ cancer_data = read_csv(file = "./data/Cancer_Registry.csv") %>%
   janitor::clean_names()
 ```
 
-    ## Parsed with column specification:
-    ## cols(
-    ##   .default = col_double(),
-    ##   avgDeathsPerYear = col_integer(),
-    ##   medIncome = col_integer(),
-    ##   popEst2015 = col_integer(),
-    ##   binnedInc = col_character(),
-    ##   Geography = col_character()
-    ## )
-
-    ## See spec(...) for full column specifications.
-
 Obtain summary statistics for all variables
 
 ``` r
@@ -120,3 +108,598 @@ rbind(Minimum, Maximum, Mean, SD, Median, IQR, Size, Missing) %>%
     ## IQR          0.97           1.88                   7.63       1.97
     ## Size      3047.00        3047.00                3047.00    3047.00
     ## Missing      0.00           0.00                   0.00       0.00
+
+Note that: some\_college = 2285 out of 3047 missing values, employed = 152 out of 3047 missing values, and private\_coverage\_only = 609 out of 3047 missing values. Some college has too many missing values so it might be advisable not include it in the list of potential covariates
+
+Create a separate dataset without the missing values
+
+``` r
+clean_cancer_data = cancer_data%>%
+  select(-pct_some_col18_24)%>%
+  na.omit()
+```
+
+Figure out if there are variables that are highly correlated/provide the same information
+
+``` r
+continuous_data = clean_cancer_data%>%
+  select(-c(binned_inc, geography))
+
+cor(continuous_data)%>%
+  corrplot(method = "circle", diag=FALSE)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-4-1.png)
+
+From literature review and preliminary discussions, we decided to remove binned\_inc, pct\_some\_col\_18\_24, median\_age, geography, avg\_eaths\_per\_year, and pop\_est\_2015 from the saturated model.
+
+Now, lets observe the distributions of potential covariates and observe if transformations are needed
+
+``` r
+reduced_clean = clean_cancer_data%>%
+  select(-c(binned_inc, geography, median_age, avg_deaths_per_year, pop_est2015))
+```
+
+Create a function that plots and performs tranformations on the variables
+
+``` r
+distribution = function(variable) {
+
+  reduced_clean = tibble(variable)
+  
+  reduced_clean%>%
+    ggplot(aes(variable))+
+    geom_histogram()
+}
+
+inspection = function(variable) {
+
+  reduced_clean = tibble(variable)
+
+  #Observe transformations
+
+  transformations = reduced_clean%>%
+    dplyr::select(variable)%>%
+    mutate(log_variable = log(variable),
+          sqrt_variable = sqrt(variable),
+          inverse_variable = 1 / variable)%>%
+    gather(key = type, value = value)
+  
+  a = transformations%>%
+    filter(type == "variable")%>%
+    ggplot(aes(value))+
+    geom_density()+
+    labs(x = "Original",
+        y = "Frequency")
+
+  b = transformations%>%
+    filter(type == "sqrt_variable")%>%
+    ggplot(aes(value))+
+    geom_density()+
+    labs(x = "Sqrt(Variable)",
+        y = "Frequency")
+
+  c = transformations%>%
+    filter(type == "inverse_variable")%>%
+    ggplot(aes(value))+
+    geom_density()+
+    labs(x = "Inverse(Variable)",
+        y = "Frequency")
+
+  d = transformations%>%
+    filter(type == "log_variable")%>%
+    ggplot(aes(value))+
+    geom_density()+
+    labs(x = "log(Variable)",
+        y = "Frequency")
+
+  (a + b) / (c + d)
+  
+}
+```
+
+Average annual count has one extreme outlier, making the distribution of the points to be right skewed. Log tranformation most reduces the skewness
+
+``` r
+variable = reduced_clean$avg_ann_count
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-7-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-7-2.png)
+
+``` r
+#perform a log tranformation
+model_data = reduced_clean%>%
+  mutate(log_avg_ann_count = log(avg_ann_count))
+```
+
+The distribution of incidence rate seems to be appropriately clustered, with a few outliers. Transformations result in similar shapes as the original
+
+``` r
+variable = reduced_clean$incidence_rate
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-8-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-8-2.png)
+
+Median income is slighly right skewed and the inverse transformation reduces most of the skewness. Transformation also may not be necessary in this case
+
+``` r
+variable = reduced_clean$med_income
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-9-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-9-2.png)
+
+``` r
+#perform an inverse tranformation
+model_data = model_data%>%
+  mutate(inverse_med_income = 1/(med_income))
+```
+
+Poverty percent is slightly right skewed and the square root transformation reduces most of the skewness. Transformation also may not be necessary in this case
+
+``` r
+variable = reduced_clean$poverty_percent
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-10-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-10-2.png)
+
+``` r
+#perform a square root tranformation
+model_data = model_data%>%
+  mutate(sqrt_poverty_rate = sqrt(poverty_percent))
+```
+
+Study per cap is highly right skewed and the log transformation reduces most of the skewness
+
+``` r
+variable = reduced_clean$study_per_cap
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-11-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-11-2.png)
+
+``` r
+#perform a log tranformation
+model_data = model_data%>%
+  mutate(log_study_per_cap = log(study_per_cap))
+```
+
+Median age for males has an appropriate shape and does not need transformation
+
+``` r
+variable = reduced_clean$median_age_male
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-12-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-12-2.png)
+
+Median age for females has an appropriate shape and does not need transformation
+
+``` r
+variable = reduced_clean$median_age_female
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-13-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-13-2.png)
+
+Average household size has some unusual values. A majority of the points are clustured around 2.5 and there is a slight skewness to the right. However, there are some outliers to the left that are close to 0. None of the transformations are useful - the log transformation removes the slight right skewness but we still see a another bump to the left
+
+``` r
+variable = reduced_clean$avg_household_size
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-14-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-14-2.png)
+
+``` r
+#Perform a log transformation
+model_data = model_data%>%
+  mutate(log_avg_household_size = log(avg_household_size))
+```
+
+Percent married is slightly left skewed but none of the transformation perform better, in terms of skewness
+
+``` r
+variable = reduced_clean$percent_married
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-15-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-15-2.png)
+
+pct\_no\_hs18\_24 is slightly right skewed and the square root transformation reduces most of the skewness. However, a transformation might not be necessary in this case
+
+``` r
+variable = reduced_clean$pct_no_hs18_24
+
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-16-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-16-2.png)
+
+``` r
+#Perform a square root transformation
+model_data = model_data%>%
+  mutate(sqrt_pct_no_hs18_24 = sqrt(pct_no_hs18_24))
+```
+
+pct\_hs18\_24 is appropriately shaped
+
+``` r
+variable = reduced_clean$pct_hs18_24
+
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-17-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-17-2.png)
+
+################################################################################################## 
+
+pct\_bach\_deg18\_24 is appropriately shaped
+
+``` r
+variable = reduced_clean$pct_bach_deg18_24
+
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-18-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-18-2.png)
+
+pct\_hs25\_over is appropriately shaped
+
+``` r
+variable = reduced_clean$pct_hs25_over
+
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-19-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-19-2.png)
+
+pct\_bach\_deg25\_over is appropriately shaped
+
+``` r
+variable = reduced_clean$pct_bach_deg25_over
+
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-20-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-20-2.png)
+
+pct\_employed16\_over is appropriately shaped
+
+``` r
+variable = reduced_clean$pct_employed16_over
+
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-21-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-21-2.png)
+
+pct\_unemployed16\_over is appropriately shaped
+
+``` r
+variable = reduced_clean$pct_unemployed16_over
+
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-22-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-22-2.png)
+
+pct\_private\_coverage is appropriately shaped
+
+``` r
+variable = reduced_clean$pct_private_coverage
+
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-23-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-23-2.png)
+
+pct\_private\_coverage\_alone is appropriately shaped
+
+``` r
+variable = reduced_clean$pct_private_coverage_alone
+
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-24-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-24-2.png)
+
+pct\_emp\_priv\_coverage is appropriately shaped
+
+``` r
+variable = reduced_clean$pct_emp_priv_coverage
+
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-25-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-25-2.png)
+
+pct\_public\_coverage is appropriately shaped
+
+``` r
+variable = reduced_clean$pct_public_coverage
+
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-26-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-26-2.png)
+
+pct\_public\_coverage\_alone is appropriately shaped
+
+``` r
+variable = reduced_clean$pct_public_coverage_alone
+
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-27-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-27-2.png)
+
+pct\_white is appropriately shaped
+
+``` r
+variable = reduced_clean$pct_white
+
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-28-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-28-2.png)
+
+pct\_black is appropriately shaped
+
+``` r
+variable = reduced_clean$pct_black
+
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-29-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-29-2.png)
+
+pct\_asian is appropriately shaped
+
+``` r
+variable = reduced_clean$pct_asian
+
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-30-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-30-2.png)
+
+pct\_other\_race is appropriately shaped
+
+``` r
+variable = reduced_clean$pct_other_race
+
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-31-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-31-2.png)
+
+pct\_married\_households is appropriately shaped
+
+``` r
+variable = reduced_clean$pct_married_households
+
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-32-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-32-2.png)
+
+birth\_rate is appropriately shaped
+
+``` r
+variable = reduced_clean$birth_rate
+
+
+distribution(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-33-1.png)
+
+``` r
+inspection(variable)
+```
+
+![](margaret_eda_files/figure-markdown_github/unnamed-chunk-33-2.png)
+
+Create a full model (with all transformations, including questionable ones)
+
+``` r
+lm(target_death_rate ~ log_avg_ann_count, incidence_rate, inverse_med_income, sqrt_poverty_rate,
+   log_study_per_cap, median_age_male, median_age_female, log_avg_household_size, percent_married,
+   sqrt_pct_no_hs18_24, 
+   data = model_data
+```
+
+Create a full model (with transformations, not including questionable ones)
+
+``` r
+lm(target_death_rate ~ log_avg_ann_count, incidence_rate, med_income, poverty_rate,
+   log_study_per_cap, median_age_male, median_age_female, avg_household_size, percent_married,
+   pct_no_hs18_24, 
+   data = model_data
+```
