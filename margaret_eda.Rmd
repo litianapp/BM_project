@@ -5,5 +5,53 @@ output: github_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(corrplot)
+```
+
+Load the cancer registry data
+
+```{r message = FALSE, warning = FALSE}
+
+cancer_data = read_csv(file = "./data/Cancer_Registry.csv") %>% 
+  janitor::clean_names()
+```
+
+Obtain summary statistics for all variables
+
+```{r}
+
+numerical = cancer_data%>%
+  select(-c(binned_inc, geography))
+
+Minimum = sapply(numerical, min, na.rm = 'TRUE')
+Maximum = sapply(numerical, max, na.rm = 'TRUE')
+Mean = sapply(numerical, mean, na.rm = 'TRUE')
+Median = sapply(numerical, median, na.rm = 'TRUE')
+SD = sapply(numerical, sd, na.rm = 'TRUE')
+IQR = sapply(numerical, IQR, na.rm='TRUE')
+Size = sapply(numerical, length)
+Missing = sapply(numerical, function(x) sum(is.na(x)))
+
+rbind(Minimum, Maximum, Mean, SD, Median, IQR, Size, Missing) %>%
+  round(digits = 2)
+
+```
+
+Note that: some_college = 2285 out of 3047 missing values, employed = 152 out of 3047 missing values, and private_coverage_only = 609 out of 3047 missing values. Some college has too many missing values so it might be advisable not include it in the list of potential covariates
+
+Create a separate dataset without the missing values
+
+```{r}
+
+```
+
+Figure out if there are variables that are highly correlated/provide the same information
+
+```{r}
+
+cor(numerical)%>%
+  corrplot(method = "circle", diag=FALSE)
 ```
 
