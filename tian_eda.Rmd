@@ -9,7 +9,7 @@ library(tidyverse)
 ```
 
 ```{r}
-data = read.csv("./Cancer_Registry.csv")
+data = read.csv("./data/Cancer_Registry.csv")
 dim(data)
 ```
 
