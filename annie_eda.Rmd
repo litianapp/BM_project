@@ -195,6 +195,9 @@ cancer_data %>%
 
 ```
 
+
+
+
 There are clusters of variables that look to be correlated with other variables. 
 
 If we choose to use any other following variables, we need to check what other variables are in the model to make sure there is not a multicollinearity issue:
@@ -560,3 +563,165 @@ cancer_data %>%
 
 * incidence_rate has some extreme x outliers
 * avg_household_size lots of median households of 0.02 size... not sure what this means
+
+
+
+forward selection
+backward selection
+stepwise (forward/backward)
+criterion-based
+ridge
+lasso
+
+
+```{r}
+library(tidyverse)
+
+cancer_data_state =
+  cancer_data %>% 
+  separate(geography, into = c("county", "state"), sep = ",")
+
+cancer_data_state = 
+  cancer_data_state %>% 
+  select (-median_age, -binned_inc, -pct_some_col18_24, 
+          -pct_private_coverage_alone, pct_employed16_over)
+
+cancer_data_clean = 
+  cancer_data %>% 
+  separate(geography, into = c("county", "state"), sep = ",") %>% 
+  select (-median_age, -binned_inc, -pct_some_col18_24, 
+          -pct_private_coverage_alone, pct_employed16_over,
+          -county)
+
+
+step_fit <- lm(target_death_rate ~ ., data = cancer_data_clean)
+
+summary(step_fit)
+
+step(step_fit, direction='backward')
+step(step_fit, direction='forward')
+
+
+cancer_data_grouped = 
+  cancer_data_state %>% 
+  group_by(state) %>% 
+  summarise(avg_ann_count = mean(avg_ann_count),
+            incidence_rate = mean(incidence_rate),
+            poverty_percent = mean(poverty_percent),
+            pct_no_hs18_24 = mean(pct_no_hs18_24),
+            pct_bach_deg18_24 = mean(pct_bach_deg18_24),
+            pct_employed16_over = mean(pct_employed16_over),
+            pct_public_coverage_alone = mean(pct_public_coverage_alone),
+            pct_asian = mean(pct_asian),
+            birth_rate = mean(birth_rate),
+            avg_deaths_per_year = mean(avg_deaths_per_year),
+            med_income = mean(med_income),
+            study_per_cap = mean(study_per_cap),
+            median_age_male = mean(median_age_male),
+            avg_household_size = mean(avg_household_size),
+            pct_hs18_24 = mean(pct_hs18_24),
+            pct_hs25_over = mean(pct_hs25_over),
+            pct_unemployed16_over = mean(pct_unemployed16_over),
+            pct_emp_priv_coverage = mean(pct_emp_priv_coverage),
+            pct_white = mean(pct_white),
+            pct_other_race = mean(pct_other_race),
+            target_death_rate = mean(target_death_rate),
+            pop_est2015 = mean(pop_est2015),
+            median_age_female = mean(median_age_female),
+            percent_married = mean(percent_married),
+            pct_bach_deg25_over = mean(pct_bach_deg25_over),
+            pct_private_coverage = mean(pct_private_coverage),
+            pct_public_coverage = mean(pct_public_coverage),
+            pct_black = mean(pct_black),
+            pct_married_households = mean(pct_married_households))
+
+
+names(cancer_data)
+
+
+
+
+step_fit <- lm(target_death_rate ~ ., data = cancer_data_grouped)
+
+summary(step_fit)
+
+cor(cancer_data_grouped)
+
+step(step_fit, direction='backward')
+step(step_fit, direction='forward')
+```
+- pct_private_coverage_alone (609 missing) 20%
+- pct_employed16_over (152 missing) 5%
+- pct_some_col18_24 
+
+
+
+```{r}
+
+cancer_data_grouped %>% 
+  select(-state) %>% ##remove characters
+  cor() %>% 
+  as_tibble()
+
+library(corrplot)
+
+cancer_data_grouped %>% 
+  select(-state,
+         -pct_employed16_over) %>% ##remove characters
+  cor() %>% 
+  corrplot(., method = "square", insig = "blank", diag=FALSE, number.cex = .7)
+
+
+step_fit <- lm(target_death_rate ~ ., groups = state, data = cancer_data_grouped)
+summary(step_fit)
+
+
+step(step_fit, direction='backward')
+step(step_fit, direction='forward')
+
+```
+
+
+```{r}
+step_fit <- lm(target_death_rate ~ avg_ann_count, avg_deaths_per_year , 
+               groups = state, data = cancer_data_clean)
+
+names(cancer_data_clean)
+
+
+summary(step_fit)
+
+cor(cancer_data_grouped)
+
+step(step_fit, direction='backward')
+step(step_fit, direction='forward')
+
+
+install.packages("glmnet", repos = "http://cran.us.r-project.org")
+library(glmnet)
+test.mat = model.matrix(target_death_rate ~., data = cancer_data_clean)[, -1]
+lasso.mod = glmnet(test.mat, target_death_rate, alpha = 1)
+
+set.seed(1)
+
+cv.out = cv.glmnet(test.mat,target_death_rate ,alpha=1)
+plot(cv.out)
+
+library(leaps)
+
+Forward Stepwise Selection
+regfit.full = regsubsets(target_death_rate ~ ., data=cancer_data_clean, method ="forward")
+summary(regfit.full)
+reg.summary=summary(regfit.full)
+
+plot(reg.summary$rss ,xlab="Number of Variables ",ylab="RSS",
+type="l")
+
+plot(reg.summary$adjr2 ,xlab="Number of Variables ",ylab="Adjusted RSq",type="l")
+
+
+
+
+
+```
+
