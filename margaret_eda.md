@@ -412,9 +412,7 @@ inspection(variable)
 
 ![](margaret_eda_files/figure-markdown_github/unnamed-chunk-17-2.png)
 
-################################################################################################## 
-
-pct\_bach\_deg18\_24 is appropriately shaped
+pct\_bach\_deg18\_24 is right skewed. While the square root transformation reduces most of the skewness, it also creates a second peak close to zero.
 
 ``` r
 variable = reduced_clean$pct_bach_deg18_24
@@ -431,7 +429,13 @@ inspection(variable)
 
 ![](margaret_eda_files/figure-markdown_github/unnamed-chunk-18-2.png)
 
-pct\_hs25\_over is appropriately shaped
+``` r
+#Perform a square root transformation
+model_data = model_data%>%
+  mutate(sqrt_pct_bach_deg18_24 = sqrt(pct_bach_deg18_24))
+```
+
+pct\_hs25\_over is very slightly left skewed and no transformation is necessary
 
 ``` r
 variable = reduced_clean$pct_hs25_over
@@ -448,7 +452,7 @@ inspection(variable)
 
 ![](margaret_eda_files/figure-markdown_github/unnamed-chunk-19-2.png)
 
-pct\_bach\_deg25\_over is appropriately shaped
+pct\_bach\_deg25\_over is right skewed and a log transformation best reduces the skewness
 
 ``` r
 variable = reduced_clean$pct_bach_deg25_over
@@ -465,7 +469,13 @@ inspection(variable)
 
 ![](margaret_eda_files/figure-markdown_github/unnamed-chunk-20-2.png)
 
-pct\_employed16\_over is appropriately shaped
+``` r
+#Perform a log transformation
+model_data = model_data%>%
+  mutate(log_pct_bach_deg25_over = log(pct_bach_deg25_over))
+```
+
+pct\_employed16\_over is very slightly left skewed so no transformation is necessary
 
 ``` r
 variable = reduced_clean$pct_employed16_over
@@ -482,7 +492,7 @@ inspection(variable)
 
 ![](margaret_eda_files/figure-markdown_github/unnamed-chunk-21-2.png)
 
-pct\_unemployed16\_over is appropriately shaped
+pct\_unemployed16\_over is right skewed and a square root transformation works best to reduce skewness
 
 ``` r
 variable = reduced_clean$pct_unemployed16_over
@@ -499,7 +509,13 @@ inspection(variable)
 
 ![](margaret_eda_files/figure-markdown_github/unnamed-chunk-22-2.png)
 
-pct\_private\_coverage is appropriately shaped
+``` r
+#Perform a square root transformation
+model_data = model_data%>%
+  mutate(sqrt_pct_unemployed16_over = sqrt(pct_unemployed16_over))
+```
+
+pct\_private\_coverage is appropriately shaped (very slight skewness) and no transformation is needed
 
 ``` r
 variable = reduced_clean$pct_private_coverage
@@ -516,7 +532,7 @@ inspection(variable)
 
 ![](margaret_eda_files/figure-markdown_github/unnamed-chunk-23-2.png)
 
-pct\_private\_coverage\_alone is appropriately shaped
+pct\_private\_coverage\_alone is appropriately shaped and no transformation is needed
 
 ``` r
 variable = reduced_clean$pct_private_coverage_alone
@@ -567,7 +583,7 @@ inspection(variable)
 
 ![](margaret_eda_files/figure-markdown_github/unnamed-chunk-26-2.png)
 
-pct\_public\_coverage\_alone is appropriately shaped
+pct\_public\_coverage\_alone is slightly skewed to the right and the square root transformation reduces the skewness. But a transformation may not be necessary in this case
 
 ``` r
 variable = reduced_clean$pct_public_coverage_alone
@@ -584,7 +600,13 @@ inspection(variable)
 
 ![](margaret_eda_files/figure-markdown_github/unnamed-chunk-27-2.png)
 
-pct\_white is appropriately shaped
+``` r
+#Perform a square root transformation
+model_data = model_data%>%
+  mutate(sqrt_pct_public_coverage_alone = sqrt(pct_public_coverage_alone))
+```
+
+pct\_white is left skewed and no transformation improves the distribution
 
 ``` r
 variable = reduced_clean$pct_white
@@ -601,7 +623,7 @@ inspection(variable)
 
 ![](margaret_eda_files/figure-markdown_github/unnamed-chunk-28-2.png)
 
-pct\_black is appropriately shaped
+pct\_black is right skewed. Although, log transformation best reduces the skewness, it creates an unusual shape where a majority of the points are concentrated towards the upper half of the curve
 
 ``` r
 variable = reduced_clean$pct_black
@@ -618,7 +640,13 @@ inspection(variable)
 
 ![](margaret_eda_files/figure-markdown_github/unnamed-chunk-29-2.png)
 
-pct\_asian is appropriately shaped
+``` r
+#Perform a log transformation
+model_data = model_data%>%
+  mutate(log_pct_black = log(pct_black))
+```
+
+pct\_asian is right skewed and a log transformation reduces the skewness
 
 ``` r
 variable = reduced_clean$pct_asian
@@ -635,7 +663,13 @@ inspection(variable)
 
 ![](margaret_eda_files/figure-markdown_github/unnamed-chunk-30-2.png)
 
-pct\_other\_race is appropriately shaped
+``` r
+#Perform a log transformation
+model_data = model_data%>%
+  mutate(log_pct_asian = log(pct_asian))
+```
+
+pct\_other\_race is right skewed and a log transformation reduces the skewness
 
 ``` r
 variable = reduced_clean$pct_other_race
@@ -651,6 +685,12 @@ inspection(variable)
 ```
 
 ![](margaret_eda_files/figure-markdown_github/unnamed-chunk-31-2.png)
+
+``` r
+#Perform a log transformation
+model_data = model_data%>%
+  mutate(log_other_race = log(pct_other_race))
+```
 
 pct\_married\_households is appropriately shaped
 
@@ -669,7 +709,7 @@ inspection(variable)
 
 ![](margaret_eda_files/figure-markdown_github/unnamed-chunk-32-2.png)
 
-birth\_rate is appropriately shaped
+birth\_rate is slightly right skewed and square root transformation reduces the skewness. Although, the transformation might be unnecessary
 
 ``` r
 variable = reduced_clean$birth_rate
@@ -686,12 +726,18 @@ inspection(variable)
 
 ![](margaret_eda_files/figure-markdown_github/unnamed-chunk-33-2.png)
 
+``` r
+#Perform a square root transformation
+model_data = model_data%>%
+  mutate(sqrt_birth_rate = sqrt(birth_rate))
+```
+
 Create a full model (with all transformations, including questionable ones)
 
 ``` r
 lm(target_death_rate ~ log_avg_ann_count, incidence_rate, inverse_med_income, sqrt_poverty_rate,
-   log_study_per_cap, median_age_male, median_age_female, log_avg_household_size, percent_married,
-   sqrt_pct_no_hs18_24, 
+   log_study_per_cap, median_age_male, median_age_female, log_avg_household_size, percent_married, sqrt_pct_no_hs18_24, pct_hs18_24, sqrt_pct_bach_deg18_24, pct_hs25_over,
+   
    data = model_data
 ```
 
@@ -700,6 +746,6 @@ Create a full model (with transformations, not including questionable ones)
 ``` r
 lm(target_death_rate ~ log_avg_ann_count, incidence_rate, med_income, poverty_rate,
    log_study_per_cap, median_age_male, median_age_female, avg_household_size, percent_married,
-   pct_no_hs18_24, 
+   pct_no_hs18_24, pct_hs18_24, sqrt_pct_bach_deg18_24, pct_hs25_over, 
    data = model_data
 ```

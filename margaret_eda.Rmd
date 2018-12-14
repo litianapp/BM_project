@@ -51,7 +51,6 @@ clean_cancer_data = cancer_data%>%
   na.omit()
 
 
-
 ```
 
 Figure out if there are variables that are highly correlated/provide the same information
@@ -283,9 +282,7 @@ inspection(variable)
 
 ```
 
-##################################################################################################
-
-pct_bach_deg18_24 is appropriately shaped 
+pct_bach_deg18_24 is right skewed. While the square root transformation reduces most of the skewness, it also creates a second peak close to zero. 
 
 ```{r warning = FALSE, message = FALSE}
 
@@ -295,9 +292,13 @@ variable = reduced_clean$pct_bach_deg18_24
 distribution(variable)
 inspection(variable)
 
+#Perform a square root transformation
+model_data = model_data%>%
+  mutate(sqrt_pct_bach_deg18_24 = sqrt(pct_bach_deg18_24))
+
 ```
 
-pct_hs25_over is appropriately shaped 
+pct_hs25_over is very slightly left skewed and no transformation is necessary 
 
 ```{r warning = FALSE, message = FALSE}
 
@@ -309,7 +310,7 @@ inspection(variable)
 
 ```
 
-pct_bach_deg25_over is appropriately shaped 
+pct_bach_deg25_over is right skewed and a log transformation best reduces the skewness 
 
 ```{r warning = FALSE, message = FALSE}
 
@@ -319,9 +320,14 @@ variable = reduced_clean$pct_bach_deg25_over
 distribution(variable)
 inspection(variable)
 
+
+#Perform a log transformation
+model_data = model_data%>%
+  mutate(log_pct_bach_deg25_over = log(pct_bach_deg25_over))
+
 ```
 
-pct_employed16_over is appropriately shaped 
+pct_employed16_over is very slightly left skewed so no transformation is necessary
 
 ```{r warning = FALSE, message = FALSE}
 
@@ -333,7 +339,7 @@ inspection(variable)
 
 ```
 
-pct_unemployed16_over is appropriately shaped 
+pct_unemployed16_over is right skewed and a square root transformation works best to reduce skewness
 
 ```{r warning = FALSE, message = FALSE}
 
@@ -343,9 +349,14 @@ variable = reduced_clean$pct_unemployed16_over
 distribution(variable)
 inspection(variable)
 
+#Perform a square root transformation
+model_data = model_data%>%
+  mutate(sqrt_pct_unemployed16_over = sqrt(pct_unemployed16_over))
+
+
 ```
 
-pct_private_coverage is appropriately shaped 
+pct_private_coverage is appropriately shaped (very slight skewness) and no transformation is needed
 
 ```{r warning = FALSE, message = FALSE}
 
@@ -357,7 +368,7 @@ inspection(variable)
 
 ```
 
-pct_private_coverage_alone is appropriately shaped 
+pct_private_coverage_alone is appropriately shaped and no transformation is needed
 
 ```{r warning = FALSE, message = FALSE}
 
@@ -393,7 +404,7 @@ inspection(variable)
 
 ```
 
-pct_public_coverage_alone is appropriately shaped 
+pct_public_coverage_alone is slightly skewed to the right and the square root transformation reduces the skewness. But a transformation may not be necessary in this case  
 
 ```{r warning = FALSE, message = FALSE}
 
@@ -403,9 +414,13 @@ variable = reduced_clean$pct_public_coverage_alone
 distribution(variable)
 inspection(variable)
 
+#Perform a square root transformation
+model_data = model_data%>%
+  mutate(sqrt_pct_public_coverage_alone = sqrt(pct_public_coverage_alone))
+
 ```
 
-pct_white is appropriately shaped 
+pct_white is left skewed and no transformation improves the distribution
 
 ```{r warning = FALSE, message = FALSE}
 
@@ -417,7 +432,7 @@ inspection(variable)
 
 ```
 
-pct_black is appropriately shaped 
+pct_black is right skewed. Although, log transformation best reduces the skewness, it creates an unusual shape where a majority of the points are concentrated towards the upper half of the curve
 
 ```{r warning = FALSE, message = FALSE}
 
@@ -427,9 +442,13 @@ variable = reduced_clean$pct_black
 distribution(variable)
 inspection(variable)
 
+#Perform a log transformation
+model_data = model_data%>%
+  mutate(log_pct_black = log(pct_black))
+
 ```
 
-pct_asian is appropriately shaped 
+pct_asian is right skewed and a log transformation reduces the skewness
 
 ```{r warning = FALSE, message = FALSE}
 
@@ -439,9 +458,13 @@ variable = reduced_clean$pct_asian
 distribution(variable)
 inspection(variable)
 
+#Perform a log transformation
+model_data = model_data%>%
+  mutate(log_pct_asian = log(pct_asian))
+
 ```
 
-pct_other_race is appropriately shaped 
+pct_other_race is right skewed and a log transformation reduces the skewness
 
 ```{r warning = FALSE, message = FALSE}
 
@@ -450,6 +473,10 @@ variable = reduced_clean$pct_other_race
 
 distribution(variable)
 inspection(variable)
+
+#Perform a log transformation
+model_data = model_data%>%
+  mutate(log_other_race = log(pct_other_race))
 
 ```
 
@@ -465,7 +492,7 @@ inspection(variable)
 
 ```
 
-birth_rate is appropriately shaped 
+birth_rate is slightly right skewed and square root transformation reduces the skewness. Although, the transformation might be unnecessary 
 
 ```{r warning = FALSE, message = FALSE}
 
@@ -475,25 +502,77 @@ variable = reduced_clean$birth_rate
 distribution(variable)
 inspection(variable)
 
+#Perform a square root transformation
+model_data = model_data%>%
+  mutate(sqrt_birth_rate = sqrt(birth_rate))
+
 ```
 
 
 Create a full model (with all transformations, including questionable ones)
 
 ```{r eval = FALSE}
-lm(target_death_rate ~ log_avg_ann_count, incidence_rate, inverse_med_income, sqrt_poverty_rate,
-   log_study_per_cap, median_age_male, median_age_female, log_avg_household_size, percent_married,
-   sqrt_pct_no_hs18_24, 
-   data = model_data
+
+#check for NA 
+model_data = model_data%>%
+  na.omit()
+
+#fit model
+
+transform_model = lm(target_death_rate ~ log_avg_ann_count + incidence_rate + inverse_med_income + sqrt_poverty_rate + 
+     median_age_male + median_age_female + log_avg_household_size + percent_married +
+     sqrt_pct_no_hs18_24 + pct_hs18_24 + sqrt_pct_bach_deg18_24 + pct_hs25_over + pct_bach_deg25_over +
+     pct_employed16_over + sqrt_pct_unemployed16_over + pct_private_coverage + pct_private_coverage_alone +
+     pct_emp_priv_coverage + pct_public_coverage + sqrt_pct_public_coverage_alone + pct_white +
+     pct_married_households + sqrt_birth_rate,
+   data = model_data)
+
+
+#log_study_per_cap, log_pct_black, log_pct_asian,  log_other_race cause the X matrix to be singular
 ```
 
 Create a full model (with transformations, not including questionable ones)
 
 ```{r eval=FALSE}
-lm(target_death_rate ~ log_avg_ann_count, incidence_rate, med_income, poverty_rate,
-   log_study_per_cap, median_age_male, median_age_female, avg_household_size, percent_married,
-   pct_no_hs18_24, 
-   data = model_data
+
+non_transform_model = lm(target_death_rate ~ log_avg_ann_count + incidence_rate + med_income + poverty_percent +
+     median_age_male + median_age_female + avg_household_size + percent_married +
+     pct_no_hs18_24 + pct_hs18_24 + sqrt_pct_bach_deg18_24 + pct_hs25_over + pct_bach_deg25_over +
+     pct_employed16_over + sqrt_pct_unemployed16_over + pct_private_coverage + 
+     pct_private_coverage_alone + pct_emp_priv_coverage + pct_public_coverage + pct_public_coverage_alone +
+     pct_white + pct_married_households + birth_rate,
+   data = model_data)
+
+#log_study_per_cap, log_pct_black, log_pct_asian,  log_other_race cause the X matrix to be singular
+
 ```
 
+Begin the model selection process
+
+1) Stepwise regression 
+
+```{r}
+
+step(transform_model, direction = "both")
+
+step(non_transform_model, direction = "both")
+```
+
+2) Criterion based procedures
+
+```{r}
+
+best <- function(model, ...) 
+{
+  subsets <- regsubsets(formula(model), model.frame(model), ...)
+  subsets <- with(summary(subsets),
+                  cbind(p = as.numeric(rownames(which)), which, rss, rsq, adjr2, cp, bic))
+  
+  return(subsets)
+}  
+
+
+# Select the 'best' model of all subsets for 4-predictor model
+round(best(transform_model, nbest = 1), 3)
+```
 
