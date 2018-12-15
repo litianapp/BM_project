@@ -52,6 +52,7 @@ model_step = lm(formula = target_death_rate ~ log_avg_ann_count + incidence_rate
 summary(model_step) #p-value?
 ```
 
+
 # Method 2 criterion-based (>8?)
 
 ```{r criterion}
