@@ -197,9 +197,10 @@ variable = reduced_clean$study_per_cap
 distribution(variable)
 inspection(variable)
 
-#perform a log tranformation
+#perform a log tranformation (add 0.01 since there are some 0 values)
 model_data = model_data%>%
-  mutate(log_study_per_cap = log(study_per_cap))
+  mutate(study_per_cap = study_per_cap + 0.01,
+         log_study_per_cap = log(study_per_cap))
 
 ```
 
@@ -436,15 +437,16 @@ pct_black is right skewed. Although, log transformation best reduces the skewnes
 
 ```{r warning = FALSE, message = FALSE}
 
-variable = reduced_clean$pct_black
+variable = reduced_clean$pct_black + 0.01
 
 
 distribution(variable)
 inspection(variable)
 
-#Perform a log transformation
+#Perform a log transformation (add 0.01 since there are some 0 values)
 model_data = model_data%>%
-  mutate(log_pct_black = log(pct_black))
+  mutate(pct_black = pct_black + 0.01,
+         log_pct_black = log(pct_black))
 
 ```
 
@@ -452,15 +454,16 @@ pct_asian is right skewed and a log transformation reduces the skewness
 
 ```{r warning = FALSE, message = FALSE}
 
-variable = reduced_clean$pct_asian
+variable = reduced_clean$pct_asian + 0.01
 
 
 distribution(variable)
 inspection(variable)
 
-#Perform a log transformation
+#Perform a log transformation (add 0.01 since there are some 0 values)
 model_data = model_data%>%
-  mutate(log_pct_asian = log(pct_asian))
+  mutate(pct_asian = pct_asian + 0.01,
+         log_pct_asian = log(pct_asian))
 
 ```
 
@@ -468,7 +471,7 @@ pct_other_race is right skewed and a log transformation reduces the skewness
 
 ```{r warning = FALSE, message = FALSE}
 
-variable = reduced_clean$pct_other_race
+variable = reduced_clean$pct_other_race + 0.01
 
 
 distribution(variable)
@@ -476,7 +479,8 @@ inspection(variable)
 
 #Perform a log transformation
 model_data = model_data%>%
-  mutate(log_other_race = log(pct_other_race))
+  mutate(pct_other_race = pct_other_race + 0.01,
+         log_other_race = log(pct_other_race))
 
 ```
 
@@ -524,11 +528,11 @@ transform_model = lm(target_death_rate ~ log_avg_ann_count + incidence_rate + in
      sqrt_pct_no_hs18_24 + pct_hs18_24 + sqrt_pct_bach_deg18_24 + pct_hs25_over + pct_bach_deg25_over +
      pct_employed16_over + sqrt_pct_unemployed16_over + pct_private_coverage + pct_private_coverage_alone +
      pct_emp_priv_coverage + pct_public_coverage + sqrt_pct_public_coverage_alone + pct_white +
-     pct_married_households + sqrt_birth_rate,
+     pct_married_households + sqrt_birth_rate + log_study_per_cap + log_pct_black + log_pct_asian + log_other_race,
    data = model_data)
 
 
-#log_study_per_cap, log_pct_black, log_pct_asian,  log_other_race cause the X matrix to be singular
+summary(transform_model)
 ```
 
 Create a full model (with transformations, not including questionable ones)
@@ -540,12 +544,51 @@ non_transform_model = lm(target_death_rate ~ log_avg_ann_count + incidence_rate 
      pct_no_hs18_24 + pct_hs18_24 + sqrt_pct_bach_deg18_24 + pct_hs25_over + pct_bach_deg25_over +
      pct_employed16_over + sqrt_pct_unemployed16_over + pct_private_coverage + 
      pct_private_coverage_alone + pct_emp_priv_coverage + pct_public_coverage + pct_public_coverage_alone +
-     pct_white + pct_married_households + birth_rate,
+     pct_white + pct_married_households + birth_rate + log_study_per_cap + log_pct_black + log_pct_asian + log_other_race,
    data = model_data)
 
-#log_study_per_cap, log_pct_black, log_pct_asian,  log_other_race cause the X matrix to be singular
+summary(non_transform_model)
+```
+
+Before proceeding with the model selection process, it might be useful to determine what variables are highly correlated with each other in order decrease the number of variables in the full model
+
+```{r}
+
+vif(transform_model)
+```
+
+We find that the following variables have a VIF > 5: inverse_med_income, sqrt_poverty_rate, median_age_male, median_age_female, percent_married, pct_bach_deg25_over, pct_employed16_over, pct_private_coverage, pct_private_coverage_alone, pct_emp_priv_coverage, pct_public_coverage, sqrt_pct_public_coverage_alone, pct_married_households
+
+
+```{r}
+
+correlation_check = model_data %>%
+  dplyr::select(inverse_med_income, sqrt_poverty_rate, median_age_male, median_age_female, percent_married, pct_bach_deg25_over, pct_employed16_over, pct_private_coverage, pct_private_coverage_alone, pct_emp_priv_coverage, pct_public_coverage, sqrt_pct_public_coverage_alone, pct_married_households)
+
+cor(correlation_check)%>%
+  corrplot(method = "square", addCoef.col = "black", tl.col="black", tl.srt=45, insig = "blank", 
+         diag=FALSE, number.cex = .7)
 
 ```
+
+We find that inverse_med_income is highly related to sqrt_poverty_rate, pct_employed16_over, pct_private_coverage, pct_private_coverage_alone, pct_emp_priv_coverage, pct_public_coverage, and sqrt_pct_coverage_alone. All variables concerning insurance are highly correlated to each other. Median_age_male is highly correlated to median_age_female and percent_married is highly correlated to percent_married_households. pct_bach_deg25_over is moderately correlated to the all the other variables, which is expected because it only had a VIF = 5.2796. Out of the 13 variables with high VIF, we can keep inverse_med_income (in place of sqrt_poverty_rate, pct_employed16_over, and all the insurance variables), pct_bach_deg25_over, percent_married (its correlation to inverse_med_income is lower than the correlation between pct_married_household and inverse_med_income), and median_age_female (its correlation to percent_married is lower than median_age_males's)
+
+```{r}
+
+reduced_transform_model = lm(target_death_rate ~ log_avg_ann_count + incidence_rate + inverse_med_income + 
+                               median_age_female + log_avg_household_size + percent_married + sqrt_pct_no_hs18_24 + 
+                               pct_hs18_24 + sqrt_pct_bach_deg18_24 + pct_hs25_over + pct_bach_deg25_over +
+                               sqrt_pct_unemployed16_over + pct_white + sqrt_birth_rate + log_study_per_cap + 
+                               log_pct_black + log_pct_asian + log_other_race, data = model_data)
+
+
+vif(reduced_transform_model)
+
+```
+
+Now, collinearity has been reduced
+
+#Model Selection
 
 Begin the model selection process
 
@@ -553,9 +596,8 @@ Begin the model selection process
 
 ```{r}
 
-step(transform_model, direction = "both")
+step(reduced_transform_model, direction = "both")
 
-step(non_transform_model, direction = "both")
 ```
 
 2) Criterion based procedures
@@ -564,7 +606,7 @@ step(non_transform_model, direction = "both")
 
 best <- function(model, ...) 
 {
-  subsets <- regsubsets(formula(model), model.frame(model), ...)
+  subsets <- regsubsets(formula(model), model.frame(model), nvmax=11, ...)
   subsets <- with(summary(subsets),
                   cbind(p = as.numeric(rownames(which)), which, rss, rsq, adjr2, cp, bic))
   
@@ -572,7 +614,67 @@ best <- function(model, ...)
 }  
 
 
-# Select the 'best' model of all subsets for 4-predictor model
-round(best(transform_model, nbest = 1), 3)
+# Select the 'best' model of all subsets for 21-predictor model
+round(best(reduced_transform_model, nbest = 1), 3)
+
 ```
 
+Based on adjusted R-squared, Cp, and BIC, we arrive at a 10 predictor model which includes: incidence_rate, inverse_med_income, median_age_female, pct_hs18_24, pct_hs25_over, pct_bach_deg25_over, sqrt_pct_unemployed16_over, sqrt_birth_rate, log_pct_black, log_other_race. With these variables, Cp and BIC are minimized while adjusted R squared is maximized with the lowest possible number of variables.
+
+
+#Model Diagnostics
+
+Now, we will evaluate whether there is collinearity between our variables in the selected model
+
+```{r}
+
+selected_model = lm(target_death_rate ~ incidence_rate + inverse_med_income + median_age_female + 
+                      pct_hs18_24 + pct_hs25_over + pct_bach_deg25_over + sqrt_pct_unemployed16_over + 
+                      sqrt_birth_rate + log_pct_black + log_other_race, data = model_data) 
+
+vif(selected_model)
+```
+
+There is no collinearity between our selected variables
+
+Check whether assumptions for regression are violated
+
+```{r}
+
+par(mfrow=c(2,2))
+plot(selected_model)
+```
+
+
+Check for outliers, leverage, and influential points
+
+```{r}
+
+#find outlier in Y
+stu_res<-rstandard(selected_model)
+outliers_y<-stu_res[abs(stu_res)>2.5]
+
+length(outliers_y)
+
+influence.measures(selected_model)%>%View()
+```
+
+There are 60 outliers in the observed values. From the diagnostic plots, we saw that points 920, 1034, and 228 problematic. These three points are indeed outliers and appear to be extreme outliers. 
+
+```{r}
+
+#find influential points
+
+
+```
+
+#Model Validation
+
+a. Use a 10-fold cross validation
+
+```{r}
+
+
+
+
+```
