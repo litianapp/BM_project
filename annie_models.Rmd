@@ -1,0 +1,156 @@
+---
+title: "annie_models"
+author: "Annie Clark"
+date: "December 15, 2018"
+output: html_document
+---
+
+
+```{r}
+library(tidyverse)
+
+cancer_data = read_csv(file = "./data/Cancer_Registry.csv") %>% 
+  janitor::clean_names()
+
+cancer_data_grouped = 
+  cancer_data %>% 
+  separate(geography, into = c("county", "state"), sep = ",") %>% 
+  group_by(state) %>% 
+  select (-median_age, -binned_inc, -pct_some_col18_24, 
+          -pct_private_coverage_alone, pct_employed16_over, -county) %>% 
+  summarise(avg_ann_count = mean(avg_ann_count),
+            incidence_rate = mean(incidence_rate),
+            poverty_percent = mean(poverty_percent),
+            pct_no_hs18_24 = mean(pct_no_hs18_24),
+            pct_bach_deg18_24 = mean(pct_bach_deg18_24),
+            ##pct_employed16_over = mean(pct_employed16_over),
+            pct_public_coverage_alone = mean(pct_public_coverage_alone),
+            pct_asian = mean(pct_asian),
+            birth_rate = mean(birth_rate),
+            avg_deaths_per_year = mean(avg_deaths_per_year),
+            med_income = mean(med_income),
+            study_per_cap = mean(study_per_cap),
+            median_age_male = mean(median_age_male),
+            avg_household_size = mean(avg_household_size),
+            pct_hs18_24 = mean(pct_hs18_24),
+            pct_hs25_over = mean(pct_hs25_over),
+            pct_unemployed16_over = mean(pct_unemployed16_over),
+            pct_emp_priv_coverage = mean(pct_emp_priv_coverage),
+            pct_white = mean(pct_white),
+            pct_other_race = mean(pct_other_race),
+            target_death_rate = mean(target_death_rate),
+            pop_est2015 = mean(pop_est2015),
+            median_age_female = mean(median_age_female),
+            percent_married = mean(percent_married),
+            pct_bach_deg25_over = mean(pct_bach_deg25_over),
+            pct_private_coverage = mean(pct_private_coverage),
+            pct_public_coverage = mean(pct_public_coverage),
+            pct_black = mean(pct_black),
+            pct_married_households = mean(pct_married_households)) %>% 
+  select(-state)
+
+
+library(leaps)
+
+## best subset selection
+
+regfit.full = regsubsets(target_death_rate ~ ., data= cancer_data_grouped, nvmax = 27)
+reg.summary = summary(regfit.full)
+reg.summary
+
+plot(reg.summary$rss ,xlab="Number of Variables ",ylab="RSS", type="l")
+which.min(reg.summary$rss)
+
+plot(reg.summary$adjr2 ,xlab="Number of Variables ",ylab="Adjusted RSq",type="l")
+which.max(reg.summary$adjr2)
+
+plot(reg.summary$cp,xlab="Number of Variables ",ylab="Cp",type="l")
+which.min(reg.summary$cp)
+
+plot(reg.summary$bic ,xlab="Number of Variables ",ylab="BIC",type="l")
+which.min(reg.summary$bic)
+
+## forward step wise 
+
+regfit.forward = regsubsets(target_death_rate ~ ., data = cancer_data_grouped, 
+                            method ="forward", nvmax = 27)
+reg.summary=summary(regfit.forward)
+reg.summary
+
+plot(reg.summary$rss ,xlab="Number of Variables ",ylab="RSS", type="l")
+which.min(reg.summary$rss)
+
+plot(reg.summary$adjr2 ,xlab="Number of Variables ",ylab="Adjusted RSq",type="l")
+which.max(reg.summary$adjr2)
+
+plot(reg.summary$cp,xlab="Number of Variables ",ylab="Cp",type="l")
+which.min(reg.summary$cp)
+
+plot(reg.summary$bic ,xlab="Number of Variables ",ylab="BIC",type="l")
+which.min(reg.summary$bic)
+
+
+## backward step wise 
+
+regfit.backward = regsubsets(target_death_rate ~ ., data= cancer_data_grouped, 
+                             method = "backward", nvmax = 27)
+reg.summary = summary(regfit.backward)
+reg.summary
+
+plot(reg.summary$rss ,xlab="Number of Variables ",ylab="RSS", type="l")
+which.min(reg.summary$rss)
+
+plot(reg.summary$adjr2 ,xlab="Number of Variables ",ylab="Adjusted RSq",type="l")
+which.max(reg.summary$adjr2)
+
+plot(reg.summary$cp,xlab="Number of Variables ",ylab="Cp",type="l")
+which.min(reg.summary$cp)
+
+plot(reg.summary$bic ,xlab="Number of Variables ",ylab="BIC",type="l")
+which.min(reg.summary$bic)
+
+## lasso 
+
+require(methods)
+attach(cancer_data_grouped)
+
+library(glmnet)
+test.mat = model.matrix(target_death_rate ~ ., data = cancer_data_grouped)[, -1]
+lasso.mod = glmnet(test.mat, target_death_rate, alpha = 1)
+set.seed(1)
+cv.out = cv.glmnet(test.mat,target_death_rate,alpha=1)
+plot(cv.out)
+
+bestlam = cv.out$lambda.min
+bestlam
+
+out = glmnet (test.mat, target_death_rate, alpha=1)
+lasso.coef = predict (out, type="coefficients", s= bestlam)
+lasso.coef
+
+## ridge regression
+
+test.mat = model.matrix(target_death_rate ~ ., data = cancer_data_grouped)[, -1]
+ridge.mod=cv.glmnet(test.mat, target_death_rate, alpha=0, thresh = 1e-12)
+bestlam =ridge.mod$lambda.min
+plot(ridge.mod)
+ridge.mod$lambda.min
+
+coef(ridge.mod)
+
+
+
+## split into test/training datasets
+
+library(ISLR)
+train = sample(1:nrow(cancer_data_grouped), nrow(cancer_data_grouped)/2)
+test = (-train)
+test.data = cancer_data_grouped[test,]
+train.data = cancer_data_grouped[train,]
+
+
+
+
+
+```
+
