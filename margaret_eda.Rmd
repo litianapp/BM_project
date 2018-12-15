@@ -9,6 +9,10 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(corrplot)
 library(patchwork)
+library(HH)
+library(leaps)
+library(modelr)
+
 ```
 
 Load the cancer registry data
@@ -651,30 +655,54 @@ Check for outliers, leverage, and influential points
 ```{r}
 
 #find outlier in Y
-stu_res<-rstandard(selected_model)
-outliers_y<-stu_res[abs(stu_res)>2.5]
+stu_res = rstandard(selected_model)
+outliers_y = stu_res[abs(stu_res)>2.5]
 
 length(outliers_y)
 
 influence.measures(selected_model)%>%View()
 ```
 
-There are 60 outliers in the observed values. From the diagnostic plots, we saw that points 920, 1034, and 228 problematic. These three points are indeed outliers and appear to be extreme outliers. 
+There are 60 outliers in the observed values. From the diagnostic plots, we saw that points 920, 1034, and 228 appeared to be problematic. These three points are indeed outliers and appear to be extreme outliers. 
 
 ```{r}
 
 #find influential points
 
+distance = cooks.distance(selected_model)
+distance[distance > 0.5]
 
 ```
 
+There are no points that would be considered influential. All points have a cook's distance less than 0.5
+
 #Model Validation
 
-a. Use a 10-fold cross validation
+Perform a cross validation
 
 ```{r}
 
+cv_df =
+  crossv_mc(model_data, 100) %>% 
+  mutate(train = map(train, as_tibble),
+         test = map(test, as_tibble))
 
+cv_df = 
+  cv_df %>% 
+  mutate(lin_mod = map(train, ~lm(target_death_rate ~ incidence_rate + inverse_med_income + median_age_female + 
+                      pct_hs18_24 + pct_hs25_over + pct_bach_deg25_over + sqrt_pct_unemployed16_over + 
+                      sqrt_birth_rate + log_pct_black + log_other_race, data = .x)),
+         rmse_test_lin_mod = map2_dbl(lin_mod, test, ~rmse(model = .x, data = .y)),
+         rmse_train_lin_mod = map2_dbl(lin_mod, train, ~rmse(model = .x, data = .y)))
 
+cv_df %>% 
+  dplyr::select(starts_with("rmse")) %>% 
+  gather(key = model, value = rmse) %>% 
+  mutate(model = str_replace(model, "rmse_", ""),
+         model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse)) + geom_violin()
+
+mean(cv_df$rmse_train_lin_mod)
+mean(cv_df$rmse_test_lin_mod)
 
 ```
