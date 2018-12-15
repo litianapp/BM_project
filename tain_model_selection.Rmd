@@ -21,6 +21,11 @@ data = read_csv("./data/Cancer_Registry.csv") %>%
   janitor::clean_names()
 ```
 
+```{r}
+model_full_notrans =
+  lm(target_death_rate ~ avg_ann_count + incidence_rate + med_income + poverty_percent + study_per_cap + median_age_male + median_age_female + avg_household_size + percent_married + pct_no_hs18_24 + pct_hs18_24 + pct_bach_deg18_24 + pct_hs25_over + pct_bach_deg25_over + pct_unemployed16_over + pct_emp_priv_coverage + pct_black + pct_asian + pct_other_race + pct_married_households + birth_rate, data = data) 
+```
+
 Transformation decision mainly based on "margaret_eda.md"
 Full model variables exclude variables with high-linearity.
 ```{r}
@@ -43,15 +48,51 @@ model_full =
 
 # Method 1 stepwise
 
+## without
+```{r}
+step(model_full_notrans, direction = 'backward')
+```
+
+## with transformation
 ```{r}
 step(model_full, direction = 'backward')
 ```
 
 ```{r}
-model_step = lm(formula = target_death_rate ~ log_avg_ann_count + incidence_rate + poverty_percent + median_age_male + percent_married + pct_no_hs18_24 + pct_hs18_24 + sqrt_pct_bach_deg18_24 + pct_hs25_over + log_pct_bach_deg25_over + sqrt_pct_unemployed16_over + pct_black + log_pct_other_race + pct_married_households + birth_rate, data = data_trans)
-summary(model_step) #p-value?
+data_15 = data_trans %>% 
+   dplyr::select(target_death_rate, log_avg_ann_count, incidence_rate, poverty_percent, median_age_male, percent_married, pct_no_hs18_24,  pct_hs18_24, sqrt_pct_bach_deg18_24, pct_hs25_over, log_pct_bach_deg25_over, sqrt_pct_unemployed16_over, pct_black, log_pct_other_race, pct_married_households, birth_rate)
+
+model_step = lm(formula = target_death_rate ~ log_avg_ann_count + incidence_rate + poverty_percent + median_age_male + percent_married + pct_no_hs18_24 + pct_hs18_24 + sqrt_pct_bach_deg18_24 + pct_hs25_over + log_pct_bach_deg25_over + sqrt_pct_unemployed16_over + pct_black + log_pct_other_race + pct_married_households + birth_rate, data = data_15)
+summary(model_step) 
 ```
 
+delete some variables based on p-value?
+```{r}
+data_11 = data_15 %>% 
+  dplyr::select(-log_avg_ann_count, -pct_no_hs18_24, -sqrt_pct_bach_deg18_24, -pct_black)
+
+model_11 = lm(formula = target_death_rate ~  incidence_rate + poverty_percent + median_age_male + percent_married + pct_hs18_24 + pct_hs25_over + log_pct_bach_deg25_over + sqrt_pct_unemployed16_over + log_pct_other_race + pct_married_households + birth_rate, data = data_11)
+summary(model_11) 
+```
+
+delete some variables based on high correlation?
+
+```{r}
+cor(data_11)
+```
+
+cov(pct_married_households, percent_married) = 0.8702605
+cov(log_pct_bach_deg25_over, pct_hs25_over) = -0.70434687   
+cov(poverty_percent, percent_married) = -0.6428569
+cov(poverty_percent, sqrt_pct_unemployed16_over) = 0.630315059
+
+```{r}
+data_8 = data_11 %>% 
+  dplyr::select(-pct_married_households, -log_pct_bach_deg25_over, -poverty_percent)
+
+model_8 = lm(formula = target_death_rate ~  incidence_rate + median_age_male + percent_married + pct_hs18_24 + pct_hs25_over + sqrt_pct_unemployed16_over + log_pct_other_race + birth_rate, data = data_8)
+summary(model_8) 
+```
 
 # Method 2 criterion-based (>8?)
 
@@ -59,12 +100,12 @@ summary(model_step) #p-value?
 data_trans = as.data.frame(data_trans)
 # Leaps function provides all-subsets analysis
 # Printing the 2 best models of each size, using the Cp criterion:
-leaps(x = data_trans[,2:22], y = data_trans[,1], nbest = 2, method = "Cp")
+leaps(x = data_trans[,2:9], y = data_trans[,1], nbest = 2, method = "Cp")
 # Printing the 2 best models of each size, using the adjusted R^2 criterion:
-leaps(x = data_trans[,2:22], y = data_trans[,1], nbest = 2, method = "adjr2")
+leaps(x = data_trans[,2:9], y = data_trans[,1], nbest = 2, method = "adjr2")
 
 # Summary of models for each size (one model per size)
-rs = summary(regsubsets(target_death_rate ~ ., data = data_trans))
+rs = summary(regsubsets(target_death_rate ~ ., data = data_8))
 
 par(mfrow = c(1,2))
 
@@ -73,4 +114,45 @@ abline(0,1)
 
 plot(2:9, rs$adjr2, xlab = "No of parameters", ylab = "Adj R2")
 ```
+
+# Method 3 criterion-based (subsets)
+
+```{r}
+best <- function(model, ...) {
+  subsets <- regsubsets(formula(model), model.frame(model), ...)
+  subsets <- with(summary(subsets),
+                  cbind(p = as.numeric(rownames(which)), which, rss, rsq, adjr2, cp, bic))
+  return(subsets)
+}  
+
+# Select the 'best' model of all subsets for 8-predictor model
+round(best(model_8, nbest = 1), 8)
+```
+
+adjr2 = 0.4465855... not good...
+
+# Check outliers
+
+```{r}
+influence.measures(model_8)
+```
+
+26   1.27e-04 0.006544   *
+31   1.58e-03 0.015489   *
+34   3.15e-03 0.004148   *
+
+# Cross-validation
+
+```{r 10_fold}
+set.seed(1)
+data_train = trainControl(method = "repeatedcv", number = 10, repeats = 10)
+
+# Fit the model
+model_caret = train(target_death_rate ~  incidence_rate + median_age_male + percent_married + pct_hs18_24 + pct_hs25_over + sqrt_pct_unemployed16_over + log_pct_other_race + birth_rate, data = data_8, 
+                    method = 'lm', na.action = na.pass)
+model_caret
+```
+
+RMSE:20.85816
+Rsquared: 0.4400466
 
