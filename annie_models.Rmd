@@ -56,18 +56,20 @@ library(leaps)
 
 regfit.full = regsubsets(target_death_rate ~ ., data= cancer_data_grouped, nvmax = 27)
 reg.summary = summary(regfit.full)
-reg.summary
+##reg.summary
 
+par(mfrow=c(2, 2))
 plot(reg.summary$rss ,xlab="Number of Variables ",ylab="RSS", type="l")
-which.min(reg.summary$rss)
 
 plot(reg.summary$adjr2 ,xlab="Number of Variables ",ylab="Adjusted RSq",type="l")
-which.max(reg.summary$adjr2)
 
 plot(reg.summary$cp,xlab="Number of Variables ",ylab="Cp",type="l")
-which.min(reg.summary$cp)
 
 plot(reg.summary$bic ,xlab="Number of Variables ",ylab="BIC",type="l")
+
+which.min(reg.summary$rss)
+which.max(reg.summary$adjr2)
+which.min(reg.summary$cp)
 which.min(reg.summary$bic)
 
 ## forward step wise 
@@ -75,18 +77,20 @@ which.min(reg.summary$bic)
 regfit.forward = regsubsets(target_death_rate ~ ., data = cancer_data_grouped, 
                             method ="forward", nvmax = 27)
 reg.summary=summary(regfit.forward)
-reg.summary
+##reg.summary
 
+par(mfrow=c(2, 2))
 plot(reg.summary$rss ,xlab="Number of Variables ",ylab="RSS", type="l")
-which.min(reg.summary$rss)
 
 plot(reg.summary$adjr2 ,xlab="Number of Variables ",ylab="Adjusted RSq",type="l")
-which.max(reg.summary$adjr2)
 
 plot(reg.summary$cp,xlab="Number of Variables ",ylab="Cp",type="l")
-which.min(reg.summary$cp)
 
 plot(reg.summary$bic ,xlab="Number of Variables ",ylab="BIC",type="l")
+
+which.min(reg.summary$rss)
+which.max(reg.summary$adjr2)
+which.min(reg.summary$cp)
 which.min(reg.summary$bic)
 
 
@@ -95,18 +99,20 @@ which.min(reg.summary$bic)
 regfit.backward = regsubsets(target_death_rate ~ ., data= cancer_data_grouped, 
                              method = "backward", nvmax = 27)
 reg.summary = summary(regfit.backward)
-reg.summary
+##reg.summary
 
+par(mfrow=c(2, 2))
 plot(reg.summary$rss ,xlab="Number of Variables ",ylab="RSS", type="l")
-which.min(reg.summary$rss)
 
 plot(reg.summary$adjr2 ,xlab="Number of Variables ",ylab="Adjusted RSq",type="l")
-which.max(reg.summary$adjr2)
 
 plot(reg.summary$cp,xlab="Number of Variables ",ylab="Cp",type="l")
-which.min(reg.summary$cp)
 
 plot(reg.summary$bic ,xlab="Number of Variables ",ylab="BIC",type="l")
+
+which.min(reg.summary$rss)
+which.max(reg.summary$adjr2)
+which.min(reg.summary$cp)
 which.min(reg.summary$bic)
 
 ## lasso 
@@ -119,6 +125,7 @@ test.mat = model.matrix(target_death_rate ~ ., data = cancer_data_grouped)[, -1]
 lasso.mod = glmnet(test.mat, target_death_rate, alpha = 1)
 set.seed(1)
 cv.out = cv.glmnet(test.mat,target_death_rate,alpha=1)
+par(mfrow=c(1, 1))
 plot(cv.out)
 
 bestlam = cv.out$lambda.min
@@ -133,6 +140,7 @@ lasso.coef
 test.mat = model.matrix(target_death_rate ~ ., data = cancer_data_grouped)[, -1]
 ridge.mod=cv.glmnet(test.mat, target_death_rate, alpha=0, thresh = 1e-12)
 bestlam =ridge.mod$lambda.min
+par(mfrow=c(1, 1))
 plot(ridge.mod)
 ridge.mod$lambda.min
 
@@ -149,8 +157,86 @@ test.data = cancer_data_grouped[test,]
 train.data = cancer_data_grouped[train,]
 
 
+```
 
 
+```{r}
+library(tidyverse)
+
+cancer_data = read_csv(file = "./data/Cancer_Registry.csv") %>% 
+  janitor::clean_names()
+
+cancer_data_clean = 
+  cancer_data %>% 
+  separate(geography, into = c("county", "state"), sep = ",") %>% 
+  select (-median_age, -binned_inc, -pct_some_col18_24, 
+          -pct_private_coverage_alone, pct_employed16_over, -county, -state) 
+
+
+library(leaps)
+
+## best subset selection
+
+regfit.full = regsubsets(target_death_rate ~ ., data= cancer_data_clean, nvmax = 27)
+reg.summary = summary(regfit.full)
+##reg.summary
+
+par(mfrow=c(2, 2))
+plot(reg.summary$rss ,xlab="Number of Variables ",ylab="RSS", type="l")
+
+plot(reg.summary$adjr2 ,xlab="Number of Variables ",ylab="Adjusted RSq",type="l")
+
+plot(reg.summary$cp,xlab="Number of Variables ",ylab="Cp",type="l")
+
+plot(reg.summary$bic ,xlab="Number of Variables ",ylab="BIC",type="l")
+
+which.min(reg.summary$rss)
+which.max(reg.summary$adjr2)
+which.min(reg.summary$cp)
+which.min(reg.summary$bic)
+
+## forward step wise 
+
+regfit.forward = regsubsets(target_death_rate ~ ., data = cancer_data_clean, 
+                            method ="forward", nvmax = 27)
+reg.summary=summary(regfit.forward)
+##reg.summary
+
+par(mfrow=c(2, 2))
+plot(reg.summary$rss ,xlab="Number of Variables ",ylab="RSS", type="l")
+
+plot(reg.summary$adjr2 ,xlab="Number of Variables ",ylab="Adjusted RSq",type="l")
+
+plot(reg.summary$cp,xlab="Number of Variables ",ylab="Cp",type="l")
+
+plot(reg.summary$bic ,xlab="Number of Variables ",ylab="BIC",type="l")
+
+which.min(reg.summary$rss)
+which.max(reg.summary$adjr2)
+which.min(reg.summary$cp)
+which.min(reg.summary$bic)
+
+
+## backward step wise 
+
+regfit.backward = regsubsets(target_death_rate ~ ., data= cancer_data_clean, 
+                             method = "backward", nvmax = 27)
+reg.summary = summary(regfit.backward)
+##reg.summary
+
+par(mfrow=c(2, 2))
+plot(reg.summary$rss ,xlab="Number of Variables ",ylab="RSS", type="l")
+
+plot(reg.summary$adjr2 ,xlab="Number of Variables ",ylab="Adjusted RSq",type="l")
+
+plot(reg.summary$cp,xlab="Number of Variables ",ylab="Cp",type="l")
+
+plot(reg.summary$bic ,xlab="Number of Variables ",ylab="BIC",type="l")
+
+which.min(reg.summary$rss)
+which.max(reg.summary$adjr2)
+which.min(reg.summary$cp)
+which.min(reg.summary$bic)
 
 ```
 
