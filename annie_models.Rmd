@@ -690,8 +690,74 @@ plot(regfit_full_mean$bic ,xlab="Number of Variables ",ylab="BIC",type="l")
 
 Mean is performing better
 
+```{r}
+lm_fit = lm(target_death_rate ~ log_pct_black + pct_married_households + log_pct_bach_deg25_over + 
+              pct_private_coverage + percent_married + pct_hs18_24 + incidence_rate + sqrt_poverty_percent +
+              log_other_race, data = model_data_state_mean)
+
+vif(lm_fit)
+
+## which ones are the issues?
+
+correlation_check = model_data %>%
+  dplyr::select(log_pct_black, pct_married_households, log_pct_bach_deg25_over, pct_private_coverage, percent_married,
+pct_hs18_24, incidence_rate, sqrt_poverty_percent, log_other_race, target_death_rate)
+
+library(corrplot)
+par(mfrow=c(1, 1))
+
+cor(correlation_check)%>%
+  corrplot(method = "square", addCoef.col = "black", tl.col="black", tl.srt=45, insig = "blank", 
+         diag=FALSE, number.cex = .7)
+
+## keep married_households (over percent_married) and private insurance (poverty)
+
+## try again without dependent variables
+
+final_model = lm(target_death_rate ~ log_pct_black + pct_married_households + log_pct_bach_deg25_over + 
+              pct_private_coverage + pct_hs18_24 + incidence_rate + log_other_race, 
+            data = model_data_state_mean)
+
+vif(final_model)
+
+summary(final_model)
+
+plot(final_model)
+
+
+```
+
+model diagnostics
+```{r}
+
+par(mfrow=c(2,2))
+plot(final_model)
+```
+
+
+Check for outliers, leverage, and influential points
+
+```{r}
+
+#find outlier in Y
+stu_res = rstandard(final_model)
+outliers_y = stu_res[abs(stu_res)>2.5]
+
+outliers_y
+
+## 2 and 12 are not problematic; 37 needs to be further evaluated
+
+influence.measures(final_model)
+
+## getting 7 influence points but only worrying about #37
+## most likely occurring because only 51 observations?
+```
+
+```
+
+
 log_pct_black, pct_married_households, log_pct_bach_deg25_over, pct_private_coverage, percent_married
-pct_hs18_24, 
+pct_hs18_24, incidence_rate, sqrt_poverty_percent, log_other_race
 
 
 ## Forward subset selection
@@ -734,7 +800,6 @@ plot(reg_summary_mean$cp,xlab="Number of Variables ",ylab="Cp",type="l")
 
 plot(reg_summary_mean$bic ,xlab="Number of Variables ",ylab="BIC",type="l")
 
-lm_subset = 
 ```
 
 
@@ -839,10 +904,17 @@ cv_df =
 
 cv_df = 
   cv_df %>% 
-  mutate(subset_trans = map(train, ~lm(target_death_rate ~ incidence_rate + pct_hs18_24 + log_pct_bach_deg25_over
+  mutate(subset_trans_large = map(train, ~lm(target_death_rate ~ log_pct_black + pct_married_households +
+                                         log_pct_bach_deg25_over + pct_private_coverage + pct_hs18_24 + 
+                                         log_other_race + incidence_rate,  data = .x)),
+         rmse_test_subset_trans_large = map2_dbl(subset_trans_large, test, ~rmse(model = .x, data = .y)),
+         rmse_train_subset_trans_large = map2_dbl(subset_trans_large, train, ~rmse(model = .x, data = .y)),
+         
+         
+         subset_trans_small = map(train, ~lm(target_death_rate ~ incidence_rate + pct_hs18_24 + log_pct_bach_deg25_over
                        + pct_married_households, data = .x)),
-         rmse_test_subset_trans = map2_dbl(subset_trans, test, ~rmse(model = .x, data = .y)),
-         rmse_train_subset_trans = map2_dbl(subset_trans, train, ~rmse(model = .x, data = .y)),
+         rmse_test_subset_trans_small = map2_dbl(subset_trans_small, test, ~rmse(model = .x, data = .y)),
+         rmse_train_subset_trans_small = map2_dbl(subset_trans_small, train, ~rmse(model = .x, data = .y)),
          
          subset_untrans = map(train, ~lm(target_death_rate ~ pct_bach_deg18_24 + med_income + pct_other_race
                                          +  pct_bach_deg25_over + pct_private_coverage, data = .x)),
@@ -858,11 +930,16 @@ cv_df %>%
          model = fct_inorder(model)) %>% 
   ggplot(aes(x = model, y = rmse)) + geom_violin()
 
-mean(cv_df$rmse_test_subset_trans)
-mean(cv_df$rmse_train_subset_trans)
+mean(cv_df$rmse_test_subset_trans_large)
+mean(cv_df$rmse_train_subset_trans_large)
+
+mean(cv_df$rmse_test_subset_trans_small)
+mean(cv_df$rmse_train_subset_trans_small)
+
 
 mean(cv_df$rmse_test_subset_untrans)
 mean(cv_df$rmse_train_subset_untrans)
+
 
 ## transformed is getting a better test rmse
 
