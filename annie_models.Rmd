@@ -2,8 +2,17 @@
 title: "annie_models"
 author: "Annie Clark"
 date: "December 15, 2018"
-output: html_document
+output: github_document
 ---
+
+
+```{r}
+library(tidyverse)
+library(HH)
+library(leaps)
+library(modelr)
+
+```
 
 
 ```{r}
@@ -49,6 +58,7 @@ cancer_data_grouped =
             pct_married_households = mean(pct_married_households)) %>% 
   select(-state)
 
+## median for everyone; 
 
 library(leaps)
 
@@ -115,6 +125,8 @@ which.max(reg.summary$adjr2)
 which.min(reg.summary$cp)
 which.min(reg.summary$bic)
 
+
+
 ## lasso 
 
 require(methods)
@@ -134,6 +146,14 @@ bestlam
 out = glmnet (test.mat, target_death_rate, alpha=1)
 lasso.coef = predict (out, type="coefficients", s= bestlam)
 lasso.coef
+
+rsq = 1 - cv.out$cvm/var(target_death_rate)
+
+summary(lasso.mod)
+
+lasso.mod
+
+
 
 ## ridge regression
 
@@ -222,6 +242,7 @@ which.min(reg.summary$bic)
 regfit.backward = regsubsets(target_death_rate ~ ., data= cancer_data_clean, 
                              method = "backward", nvmax = 27)
 reg.summary = summary(regfit.backward)
+
 ##reg.summary
 
 par(mfrow=c(2, 2))
@@ -239,4 +260,562 @@ which.min(reg.summary$cp)
 which.min(reg.summary$bic)
 
 ```
+
+
+```{r}
+cancer_data_grouped_median = 
+  cancer_data %>% 
+  separate(geography, into = c("county", "state"), sep = ",") %>% 
+  group_by(state) %>% 
+  select (-median_age, -binned_inc, -pct_some_col18_24, 
+          -pct_private_coverage_alone, pct_employed16_over, -county) %>% 
+  summarise(avg_ann_count = median(avg_ann_count),
+            incidence_rate = median(incidence_rate),
+            poverty_percent = median(poverty_percent),
+            pct_no_hs18_24 = median(pct_no_hs18_24),
+            pct_bach_deg18_24 = median(pct_bach_deg18_24),
+            pct_public_coverage_alone = median(pct_public_coverage_alone),
+            pct_asian = median(pct_asian),
+            birth_rate = median(birth_rate),
+            avg_deaths_per_year = median(avg_deaths_per_year),
+            med_income = median(med_income),
+            study_per_cap = median(study_per_cap),
+            median_age_male = median(median_age_male),
+            avg_household_size = median(avg_household_size),
+            pct_hs18_24 = median(pct_hs18_24),
+            pct_hs25_over = median(pct_hs25_over),
+            pct_unemployed16_over = median(pct_unemployed16_over),
+            pct_emp_priv_coverage = median(pct_emp_priv_coverage),
+            pct_white = median(pct_white),
+            pct_other_race = median(pct_other_race),
+            target_death_rate = median(target_death_rate),
+            pop_est2015 = median(pop_est2015),
+            median_age_female = median(median_age_female),
+            percent_married = median(percent_married),
+            pct_bach_deg25_over = median(pct_bach_deg25_over),
+            pct_private_coverage = median(pct_private_coverage),
+            pct_public_coverage = median(pct_public_coverage),
+            pct_black = median(pct_black),
+            pct_married_households = median(pct_married_households)) %>% 
+  select(-state)
+
+
+
+regfit.full = regsubsets(target_death_rate ~ ., data= cancer_data_grouped_median, nvmax = 27)
+reg.summary = summary(regfit.full)
+##reg.summary
+
+par(mfrow=c(2, 2))
+plot(reg.summary$rss ,xlab="Number of Variables ",ylab="RSS", type="l")
+
+plot(reg.summary$adjr2 ,xlab="Number of Variables ",ylab="Adjusted RSq",type="l")
+
+plot(reg.summary$cp,xlab="Number of Variables ",ylab="Cp",type="l")
+
+plot(reg.summary$bic ,xlab="Number of Variables ",ylab="BIC",type="l")
+
+which.min(reg.summary$rss)
+which.max(reg.summary$adjr2)
+which.min(reg.summary$cp)
+which.min(reg.summary$bic)
+
+## forward step wise 
+
+regfit.forward = regsubsets(target_death_rate ~ ., data = cancer_data_grouped_median, 
+                            method ="forward", nvmax = 27)
+reg.summary=summary(regfit.forward)
+##reg.summary
+
+par(mfrow=c(2, 2))
+plot(reg.summary$rss ,xlab="Number of Variables ",ylab="RSS", type="l")
+
+plot(reg.summary$adjr2 ,xlab="Number of Variables ",ylab="Adjusted RSq",type="l")
+
+plot(reg.summary$cp,xlab="Number of Variables ",ylab="Cp",type="l")
+
+plot(reg.summary$bic ,xlab="Number of Variables ",ylab="BIC",type="l")
+
+which.min(reg.summary$rss)
+which.max(reg.summary$adjr2)
+which.min(reg.summary$cp)
+which.min(reg.summary$bic)
+
+
+## backward step wise 
+
+regfit.backward = regsubsets(target_death_rate ~ ., data= cancer_data_grouped, 
+                             method = "backward", nvmax = 27)
+reg.summary = summary(regfit.backward)
+##reg.summary
+
+par(mfrow=c(2, 2))
+plot(reg.summary$rss ,xlab="Number of Variables ",ylab="RSS", type="l")
+
+plot(reg.summary$adjr2 ,xlab="Number of Variables ",ylab="Adjusted RSq",type="l")
+
+plot(reg.summary$cp,xlab="Number of Variables ",ylab="Cp",type="l")
+
+plot(reg.summary$bic ,xlab="Number of Variables ",ylab="BIC",type="l")
+
+which.min(reg.summary$rss)
+which.max(reg.summary$adjr2)
+which.min(reg.summary$cp)
+which.min(reg.summary$bic)
+
+
+
+## lasso 
+
+require(methods)
+attach(cancer_data_grouped)
+
+library(glmnet)
+test.mat = model.matrix(target_death_rate ~ ., data = cancer_data_grouped)[, -1]
+lasso.mod = glmnet(test.mat, target_death_rate, alpha = 1)
+set.seed(1)
+cv.out = cv.glmnet(test.mat,target_death_rate,alpha=1)
+par(mfrow=c(1, 1))
+plot(cv.out)
+
+bestlam = cv.out$lambda.min
+bestlam
+
+out = glmnet (test.mat, target_death_rate, alpha=1)
+lasso.coef = predict (out, type="coefficients", s= bestlam)
+lasso.coef
+
+rsq = 1 - cv.out$cvm/var(target_death_rate)
+
+summary(lasso.mod)
+
+lasso.mod
+
+
+
+## ridge regression
+
+test.mat = model.matrix(target_death_rate ~ ., data = cancer_data_grouped)[, -1]
+ridge.mod=cv.glmnet(test.mat, target_death_rate, alpha=0, thresh = 1e-12)
+bestlam =ridge.mod$lambda.min
+par(mfrow=c(1, 1))
+plot(ridge.mod)
+ridge.mod$lambda.min
+
+coef(ridge.mod)
+
+```
+
+
+```{r}
+
+model_data = 
+  cancer_data %>%
+  dplyr::select(-pct_some_col18_24) %>%
+  na.omit() %>%
+  dplyr::select(-c(binned_inc, median_age, avg_deaths_per_year, pop_est2015)) %>% 
+  mutate(log_avg_ann_count = log(avg_ann_count),
+         inverse_med_income = 1/(med_income),
+         sqrt_poverty_percent = sqrt(poverty_percent),
+         study_per_cap = study_per_cap + 0.01,
+         log_study_per_cap = log(study_per_cap),
+         log_avg_household_size = log(avg_household_size),
+         sqrt_pct_no_hs18_24 = sqrt(pct_no_hs18_24),
+         sqrt_pct_bach_deg18_24 = sqrt(pct_bach_deg18_24),
+         log_pct_bach_deg25_over = log(pct_bach_deg25_over),
+         sqrt_pct_unemployed16_over = sqrt(pct_unemployed16_over),
+         sqrt_pct_public_coverage_alone = sqrt(pct_public_coverage_alone),
+         pct_black = pct_black + 0.01,
+         log_pct_black = log(pct_black),
+         pct_asian = pct_asian + 0.01,
+         log_pct_asian = log(pct_asian),
+         pct_other_race = pct_other_race + 0.01,
+         log_other_race = log(pct_other_race),
+         sqrt_birth_rate = sqrt(birth_rate)) %>% 
+  dplyr::select(-c(avg_ann_count, med_income, poverty_percent, study_per_cap, 
+            avg_household_size, pct_no_hs18_24, pct_bach_deg18_24, pct_bach_deg25_over,
+            pct_unemployed16_over, pct_public_coverage_alone, pct_black, 
+            pct_asian, pct_other_race, birth_rate))
+
+model_data_state_mean = 
+  model_data %>% 
+  separate(geography, into = c("county", "state"), sep = ",") %>% 
+  group_by(state) %>% 
+  dplyr::select (-county) %>% 
+  summarise(log_avg_ann_count = mean(log_avg_ann_count),
+            incidence_rate = mean(incidence_rate),
+            sqrt_poverty_percent = mean(sqrt_poverty_percent),
+            sqrt_pct_no_hs18_24 = mean(sqrt_pct_no_hs18_24),
+            sqrt_pct_bach_deg18_24 = mean(sqrt_pct_bach_deg18_24),
+            sqrt_pct_public_coverage_alone = mean(sqrt_pct_public_coverage_alone),
+            log_pct_asian = mean(log_pct_asian),
+            sqrt_birth_rate = mean(sqrt_birth_rate),
+            inverse_med_income = mean(inverse_med_income),
+            log_study_per_cap = mean(log_study_per_cap),
+            median_age_male = mean(median_age_male),
+            log_avg_household_size = mean(log_avg_household_size),
+            pct_hs18_24 = mean(pct_hs18_24),
+            pct_hs25_over = mean(pct_hs25_over),
+            sqrt_pct_unemployed16_over = mean(sqrt_pct_unemployed16_over),
+            pct_emp_priv_coverage = mean(pct_emp_priv_coverage),
+            pct_white = mean(pct_white),
+            log_other_race = mean(log_other_race),
+            target_death_rate = mean(target_death_rate),
+            median_age_female = mean(median_age_female),
+            percent_married = mean(percent_married),
+            log_pct_bach_deg25_over = mean(log_pct_bach_deg25_over),
+            pct_private_coverage = mean(pct_private_coverage),
+            pct_public_coverage = mean(pct_public_coverage),
+            log_pct_black = mean(log_pct_black),
+            pct_married_households = mean(pct_married_households), 
+            pct_employed16_over = mean(pct_employed16_over),
+            pct_private_coverage_alone = mean(pct_private_coverage_alone)) %>% 
+  dplyr::select(-state)
+
+
+model_data_state_median = 
+  model_data %>% 
+  separate(geography, into = c("county", "state"), sep = ",") %>% 
+  group_by(state) %>% 
+  dplyr::select (-county) %>% 
+  summarise(log_avg_ann_count = median(log_avg_ann_count),
+            incidence_rate = median(incidence_rate),
+            sqrt_poverty_percent = median(sqrt_poverty_percent),
+            sqrt_pct_no_hs18_24 = median(sqrt_pct_no_hs18_24),
+            sqrt_pct_bach_deg18_24 = median(sqrt_pct_bach_deg18_24),
+            sqrt_pct_public_coverage_alone = median(sqrt_pct_public_coverage_alone),
+            log_pct_asian = median(log_pct_asian),
+            sqrt_birth_rate = median(sqrt_birth_rate),
+            inverse_med_income = median(inverse_med_income),
+            log_study_per_cap = median(log_study_per_cap),
+            median_age_male = median(median_age_male),
+            log_avg_household_size = median(log_avg_household_size),
+            pct_hs18_24 = median(pct_hs18_24),
+            pct_hs25_over = median(pct_hs25_over),
+            sqrt_pct_unemployed16_over = median(sqrt_pct_unemployed16_over),
+            pct_emp_priv_coverage = median(pct_emp_priv_coverage),
+            pct_white = median(pct_white),
+            log_other_race = median(log_other_race),
+            target_death_rate = median(target_death_rate),
+            median_age_female = median(median_age_female),
+            percent_married = median(percent_married),
+            log_pct_bach_deg25_over = median(log_pct_bach_deg25_over),
+            pct_private_coverage = median(pct_private_coverage),
+            pct_public_coverage = median(pct_public_coverage),
+            log_pct_black = median(log_pct_black),
+            pct_married_households = median(pct_married_households), 
+            pct_employed16_over = median(pct_employed16_over),
+            pct_private_coverage_alone = median(pct_private_coverage_alone)) %>% 
+  dplyr::select(-state)
+
+
+
+```
+
+
+##Mean
+```{r}
+transform_model = lm(target_death_rate ~ log_avg_ann_count + incidence_rate + 
+                    inverse_med_income + sqrt_poverty_percent + median_age_male +
+                    median_age_female + log_avg_household_size + percent_married +
+                    sqrt_pct_no_hs18_24 + pct_hs18_24 + sqrt_pct_bach_deg18_24 + 
+                    pct_hs25_over + log_pct_bach_deg25_over + pct_employed16_over +
+                    sqrt_pct_unemployed16_over + pct_private_coverage + 
+                    pct_private_coverage_alone + pct_emp_priv_coverage + pct_public_coverage +
+                    sqrt_pct_public_coverage_alone + pct_white + pct_married_households +
+                    sqrt_birth_rate + log_study_per_cap + log_pct_black + log_pct_asian +
+                    log_other_race, data = model_data_state_mean)
+
+
+
+
+vif(transform_model)
+
+correlation_check = model_data %>%
+  dplyr::select(inverse_med_income, sqrt_poverty_percent, median_age_male, median_age_female, percent_married, pct_bach_deg25_over, pct_employed16_over, pct_private_coverage, pct_private_coverage_alone, pct_emp_priv_coverage, pct_public_coverage, sqrt_pct_public_coverage_alone, pct_married_households)
+
+library(corrplot)
+par(mfrow=c(1, 1))
+
+cor(correlation_check)%>%
+  corrplot(method = "square", addCoef.col = "black", tl.col="black", tl.srt=45, insig = "blank", 
+         diag=FALSE, number.cex = .7)
+
+## come back and decide which variable to get rid of
+```
+
+
+```{r}
+best <- function(model, ...) 
+{
+  subsets <- regsubsets(formula(model), model.frame(model), nvmax=11, ...)
+  subsets <- with(summary(subsets),
+                  cbind(p = as.numeric(rownames(which)), which, rss, rsq, adjr2, cp, bic))
+  
+  return(subsets)
+}  
+
+
+# Select the 'best' model of all subsets for 21-predictor model
+round(best(transform_model, nbest = 1), 3)
+
+## plot
+regfit.full = regsubsets(target_death_rate ~ log_avg_ann_count + incidence_rate + 
+                    inverse_med_income + sqrt_poverty_percent + median_age_male +
+                    median_age_female + log_avg_household_size + percent_married +
+                    sqrt_pct_no_hs18_24 + pct_hs18_24 + sqrt_pct_bach_deg18_24 + 
+                    pct_hs25_over + log_pct_bach_deg25_over + pct_employed16_over +
+                    sqrt_pct_unemployed16_over + pct_private_coverage + 
+                    pct_private_coverage_alone + pct_emp_priv_coverage + pct_public_coverage +
+                    sqrt_pct_public_coverage_alone + pct_white + pct_married_households +
+                    sqrt_birth_rate + log_study_per_cap + log_pct_black + log_pct_asian +
+                    log_other_race, 
+                    data = model_data_state_mean, 
+                    nvmax = 10)
+reg.summary = summary(regfit.full)
+
+par(mfrow=c(2, 2))
+plot(reg.summary$rss ,xlab="Number of Variables ",ylab="RSS", type="l")
+
+plot(reg.summary$adjr2 ,xlab="Number of Variables ",ylab="Adjusted RSq",type="l")
+
+plot(reg.summary$cp,xlab="Number of Variables ",ylab="Cp",type="l")
+
+plot(reg.summary$bic ,xlab="Number of Variables ",ylab="BIC",type="l")
+
+## model with 4 variables looks the best
+```
+
+
+##Median
+```{r}
+transform_model_median = lm(target_death_rate ~ log_avg_ann_count + incidence_rate + 
+                    inverse_med_income + sqrt_poverty_percent + median_age_male +
+                    median_age_female + log_avg_household_size + percent_married +
+                    sqrt_pct_no_hs18_24 + pct_hs18_24 + sqrt_pct_bach_deg18_24 + 
+                    pct_hs25_over + log_pct_bach_deg25_over + pct_employed16_over +
+                    sqrt_pct_unemployed16_over + pct_private_coverage + 
+                    pct_private_coverage_alone + pct_emp_priv_coverage + pct_public_coverage +
+                    sqrt_pct_public_coverage_alone + pct_white + pct_married_households +
+                    sqrt_birth_rate + log_study_per_cap + log_pct_black + log_pct_asian +
+                    log_other_race, data = model_data_state_median)
+
+
+## come back and decide which variable to get rid of
+```
+
+## Best subset selection
+```{r}
+best <- function(model, ...) 
+{
+  subsets <- regsubsets(formula(model), model.frame(model), nvmax=11, ...)
+  subsets <- with(summary(subsets),
+                  cbind(p = as.numeric(rownames(which)), which, rss, rsq, adjr2, cp, bic))
+  
+  return(subsets)
+}  
+
+
+# Select the 'best' model of all subsets for 21-predictor model
+round(best(transform_model_median, nbest = 1), 3)
+
+## plot
+regfit_full_mean = regsubsets(target_death_rate ~ log_avg_ann_count + incidence_rate + 
+                    inverse_med_income + sqrt_poverty_percent + median_age_male +
+                    median_age_female + log_avg_household_size + percent_married +
+                    sqrt_pct_no_hs18_24 + pct_hs18_24 + sqrt_pct_bach_deg18_24 + 
+                    pct_hs25_over + log_pct_bach_deg25_over + pct_employed16_over +
+                    sqrt_pct_unemployed16_over + pct_private_coverage + 
+                    pct_private_coverage_alone + pct_emp_priv_coverage + pct_public_coverage +
+                    sqrt_pct_public_coverage_alone + pct_white + pct_married_households +
+                    sqrt_birth_rate + log_study_per_cap + log_pct_black + log_pct_asian +
+                    log_other_race, 
+                    data = model_data_state_median, 
+                    nvmax = 10)
+reg_summary_mean = summary(regfit_full_mean)
+
+par(mfrow=c(2, 2))
+plot(reg_summary_median$rss ,xlab="Number of Variables ",ylab="RSS", type="l")
+
+plot(reg_summary_median$adjr2 ,xlab="Number of Variables ",ylab="Adjusted RSq",type="l")
+
+plot(reg_summary_median$cp,xlab="Number of Variables ",ylab="Cp",type="l")
+
+plot(reg_summary_median$bic ,xlab="Number of Variables ",ylab="BIC",type="l")
+```
+
+Mean is performing better
+
+
+## Forward subset selection
+```{r}
+best_forward <- function(model, ...) 
+{
+  subsets <- regsubsets(formula(model), model.frame(model), method = "forward", nvmax=11, ...)
+  subsets <- with(summary(subsets),
+                  cbind(p = as.numeric(rownames(which)), which, rss, rsq, adjr2, cp, bic))
+  
+  return(subsets)
+}  
+
+
+# Select the 'best' model of all subsets for 21-predictor model
+round(best_forward(transform_model, nbest = 1), 3)
+
+## plot
+regfit_full_mean = regsubsets(target_death_rate ~ log_avg_ann_count + incidence_rate + 
+                    inverse_med_income + sqrt_poverty_percent + median_age_male +
+                    median_age_female + log_avg_household_size + percent_married +
+                    sqrt_pct_no_hs18_24 + pct_hs18_24 + sqrt_pct_bach_deg18_24 + 
+                    pct_hs25_over + log_pct_bach_deg25_over + pct_employed16_over +
+                    sqrt_pct_unemployed16_over + pct_private_coverage + 
+                    pct_private_coverage_alone + pct_emp_priv_coverage + pct_public_coverage +
+                    sqrt_pct_public_coverage_alone + pct_white + pct_married_households +
+                    sqrt_birth_rate + log_study_per_cap + log_pct_black + log_pct_asian +
+                    log_other_race, 
+                    data = model_data_state_mean, 
+                    method = "forward",
+                    nvmax = 10)
+reg_summary_mean = summary(regfit_full_mean)
+
+par(mfrow=c(2, 2))
+plot(reg_summary_mean$rss ,xlab="Number of Variables ",ylab="RSS", type="l")
+
+plot(reg_summary_mean$adjr2 ,xlab="Number of Variables ",ylab="Adjusted RSq",type="l")
+
+plot(reg_summary_mean$cp,xlab="Number of Variables ",ylab="Cp",type="l")
+
+plot(reg_summary_mean$bic ,xlab="Number of Variables ",ylab="BIC",type="l")
+
+lm_subset = 
+```
+
+
+
+## Backward subset selection
+```{r}
+best_backward <- function(model, ...) 
+{
+  subsets <- regsubsets(formula(model), model.frame(model), method = "backward", nvmax=11, ...)
+  subsets <- with(summary(subsets),
+                  cbind(p = as.numeric(rownames(which)), which, rss, rsq, adjr2, cp, bic))
+  
+  return(subsets)
+}  
+
+
+# Select the 'best' model of all subsets for 21-predictor model
+round(best_backward(transform_model, nbest = 1), 3)
+
+## plot
+regfit_full_mean = regsubsets(target_death_rate ~ log_avg_ann_count + incidence_rate + 
+                    inverse_med_income + sqrt_poverty_percent + median_age_male +
+                    median_age_female + log_avg_household_size + percent_married +
+                    sqrt_pct_no_hs18_24 + pct_hs18_24 + sqrt_pct_bach_deg18_24 + 
+                    pct_hs25_over + log_pct_bach_deg25_over + pct_employed16_over +
+                    sqrt_pct_unemployed16_over + pct_private_coverage + 
+                    pct_private_coverage_alone + pct_emp_priv_coverage + pct_public_coverage +
+                    sqrt_pct_public_coverage_alone + pct_white + pct_married_households +
+                    sqrt_birth_rate + log_study_per_cap + log_pct_black + log_pct_asian +
+                    log_other_race, 
+                    data = model_data_state_mean, 
+                    method = "backward",
+                    nvmax = 10)
+reg_summary_mean = summary(regfit_full_mean)
+
+par(mfrow=c(2, 2))
+plot(reg_summary_mean$rss ,xlab="Number of Variables ",ylab="RSS", type="l")
+
+plot(reg_summary_mean$adjr2 ,xlab="Number of Variables ",ylab="Adjusted RSq",type="l")
+
+plot(reg_summary_mean$cp,xlab="Number of Variables ",ylab="Cp",type="l")
+
+plot(reg_summary_mean$bic ,xlab="Number of Variables ",ylab="BIC",type="l")
+```
+
+forward gives clearest results::
+incidence_rate, pct_hs18_24, log_pct_bach_deg25_over, pct_married_households
+
+let's fit the model with the four best
+
+```{r}
+best_subset_model = lm(target_death_rate = incidence_rate + pct_hs18_24 + log_pct_bach_deg25_over
+                       + pct_married_households, data = )
+```
+
+
+
+
+Let's try lasso on the new transformed dataset
+
+```{r}
+
+attach(model_data_state_mean)
+
+library(glmnet)
+test.mat = model.matrix(target_death_rate ~ ., data = model_data_state_mean)[, -1]
+lasso.mod = glmnet(test.mat, target_death_rate, alpha = 1)
+set.seed(1)
+cv.out = cv.glmnet(test.mat,target_death_rate,alpha=1)
+par(mfrow=c(1, 1))
+plot(cv.out)
+
+bestlam = cv.out$lambda.min
+bestlam
+
+out = glmnet (test.mat, target_death_rate, alpha=1)
+lasso.coef = predict (out, type="coefficients", s= bestlam)
+lasso.coef
+
+
+```
+
+
+Lasso only removes 4 variables :(
+
+Will not try ridge because we do not want a model with all of the variables, just reduced in coefficient size
+
+
+```{r}
+cv_df =
+  crossv_mc(model_data_state_mean, 100) %>% 
+  mutate(train = map(train, as_tibble),
+         test = map(test, as_tibble))
+
+cv_df = 
+  cv_df %>% 
+  mutate(lin_mod = map(train, ~lm(target_death_rate ~ incidence_rate + inverse_med_income + median_age_female + 
+                      pct_hs18_24 + pct_hs25_over + pct_bach_deg25_over + sqrt_pct_unemployed16_over + 
+                      sqrt_birth_rate + log_pct_black + log_other_race, data = .x)),
+         rmse_test_lin_mod = map2_dbl(lin_mod, test, ~rmse(model = .x, data = .y)),
+         rmse_train_lin_mod = map2_dbl(lin_mod, train, ~rmse(model = .x, data = .y)))
+
+cv_df %>% 
+  dplyr::select(starts_with("rmse")) %>% 
+  gather(key = model, value = rmse) %>% 
+  mutate(model = str_replace(model, "rmse_", ""),
+         model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse)) + geom_violin()
+
+mean(cv_df$rmse_train_lin_mod)
+mean(cv_df$rmse_test_lin_mod)
+
+```
+
+Quick summary on what's happening. Transformed data is performing best with 4 variables (via backward selection). 
+Untransformed data still looks like it's peforming better. 
+
+Haven't tried removing variables due to multicollinearities
+
+Lasso gives poor results; only removes 4 variables; untransformed data removes several more. Untransformed appears 
+to be performing better. 
+
+Need to test these models against test data
+
+Four models to try::
+1) best subset transformed (v variables)
+2) best subset untransformed (5/6 variables)
+3) lasso transformed ()
+4) lasso untransformed (11 variables)
+
+
 
