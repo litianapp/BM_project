@@ -633,7 +633,7 @@ plot(reg.summary$bic ,xlab="Number of Variables ",ylab="BIC",type="l")
 
 ##Median
 ```{r}
-transform_model_median = lm(target_death_rate ~ log_avg_ann_count + incidence_rate + 
+transform_model_mean = lm(target_death_rate ~ log_avg_ann_count + incidence_rate + 
                     inverse_med_income + sqrt_poverty_percent + median_age_male +
                     median_age_female + log_avg_household_size + percent_married +
                     sqrt_pct_no_hs18_24 + pct_hs18_24 + sqrt_pct_bach_deg18_24 + 
@@ -642,7 +642,7 @@ transform_model_median = lm(target_death_rate ~ log_avg_ann_count + incidence_ra
                     pct_private_coverage_alone + pct_emp_priv_coverage + pct_public_coverage +
                     sqrt_pct_public_coverage_alone + pct_white + pct_married_households +
                     sqrt_birth_rate + log_study_per_cap + log_pct_black + log_pct_asian +
-                    log_other_race, data = model_data_state_median)
+                    log_other_race, data = model_data_state_mean)
 
 
 ## come back and decide which variable to get rid of
@@ -652,7 +652,7 @@ transform_model_median = lm(target_death_rate ~ log_avg_ann_count + incidence_ra
 ```{r}
 best <- function(model, ...) 
 {
-  subsets <- regsubsets(formula(model), model.frame(model), nvmax=11, ...)
+  subsets <- regsubsets(formula(model), model.frame(model), nvmax=20, ...)
   subsets <- with(summary(subsets),
                   cbind(p = as.numeric(rownames(which)), which, rss, rsq, adjr2, cp, bic))
   
@@ -661,7 +661,7 @@ best <- function(model, ...)
 
 
 # Select the 'best' model of all subsets for 21-predictor model
-round(best(transform_model_median, nbest = 1), 3)
+round(best(transform_model_mean, nbest = 1), 3)
 
 ## plot
 regfit_full_mean = regsubsets(target_death_rate ~ log_avg_ann_count + incidence_rate + 
@@ -674,21 +674,24 @@ regfit_full_mean = regsubsets(target_death_rate ~ log_avg_ann_count + incidence_
                     sqrt_pct_public_coverage_alone + pct_white + pct_married_households +
                     sqrt_birth_rate + log_study_per_cap + log_pct_black + log_pct_asian +
                     log_other_race, 
-                    data = model_data_state_median, 
-                    nvmax = 10)
+                    data = model_data_state_mean, 
+                    nvmax = 20)
 reg_summary_mean = summary(regfit_full_mean)
 
 par(mfrow=c(2, 2))
-plot(reg_summary_median$rss ,xlab="Number of Variables ",ylab="RSS", type="l")
+plot(regfit_full_mean$rss ,xlab="Number of Variables ",ylab="RSS", type="l")
 
-plot(reg_summary_median$adjr2 ,xlab="Number of Variables ",ylab="Adjusted RSq",type="l")
+plot(regfit_full_mean$adjr2 ,xlab="Number of Variables ",ylab="Adjusted RSq",type="l")
 
-plot(reg_summary_median$cp,xlab="Number of Variables ",ylab="Cp",type="l")
+plot(regfit_full_mean$cp,xlab="Number of Variables ",ylab="Cp",type="l")
 
-plot(reg_summary_median$bic ,xlab="Number of Variables ",ylab="BIC",type="l")
+plot(regfit_full_mean$bic ,xlab="Number of Variables ",ylab="BIC",type="l")
 ```
 
 Mean is performing better
+
+log_pct_black, pct_married_households, log_pct_bach_deg25_over, pct_private_coverage, percent_married
+pct_hs18_24, 
 
 
 ## Forward subset selection
@@ -862,5 +865,10 @@ mean(cv_df$rmse_test_subset_untrans)
 mean(cv_df$rmse_train_subset_untrans)
 
 ## transformed is getting a better test rmse
+
+
 ```
 
+To do's
+-- look at correlations and remove some variables?
+-- add a few more models in the cross validation (some from transformed and untransformed data)
