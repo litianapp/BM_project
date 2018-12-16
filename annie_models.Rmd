@@ -430,11 +430,57 @@ model_data =
          log_pct_asian = log(pct_asian),
          pct_other_race = pct_other_race + 0.01,
          log_other_race = log(pct_other_race),
-         sqrt_birth_rate = sqrt(birth_rate)) %>% 
-  dplyr::select(-c(avg_ann_count, med_income, poverty_percent, study_per_cap, 
-            avg_household_size, pct_no_hs18_24, pct_bach_deg18_24, pct_bach_deg25_over,
-            pct_unemployed16_over, pct_public_coverage_alone, pct_black, 
-            pct_asian, pct_other_race, birth_rate))
+         sqrt_birth_rate = sqrt(birth_rate)) 
+
+model_data_state_mean_full = 
+  model_data %>% 
+  separate(geography, into = c("county", "state"), sep = ",") %>% 
+  group_by(state) %>% 
+  dplyr::select (-county) %>% 
+  summarise(avg_ann_count = mean(avg_ann_count),
+            incidence_rate = mean(incidence_rate),
+            poverty_percent = mean(poverty_percent),
+            pct_no_hs18_24 = mean(pct_no_hs18_24),
+            pct_bach_deg18_24 = mean(pct_bach_deg18_24),
+            pct_public_coverage_alone = mean(pct_public_coverage_alone),
+            pct_asian = mean(pct_asian),
+            birth_rate = mean(birth_rate),
+            med_income = mean(med_income),
+            study_per_cap = mean(study_per_cap),
+            median_age_male = mean(median_age_male),
+            avg_household_size = mean(avg_household_size),
+            pct_hs18_24 = mean(pct_hs18_24),
+            pct_hs25_over = mean(pct_hs25_over),
+            pct_unemployed16_over = mean(pct_unemployed16_over),
+            pct_emp_priv_coverage = mean(pct_emp_priv_coverage),
+            pct_white = mean(pct_white),
+            pct_other_race = mean(pct_other_race),
+            target_death_rate = mean(target_death_rate),
+            median_age_female = mean(median_age_female),
+            percent_married = mean(percent_married),
+            pct_bach_deg25_over = mean(pct_bach_deg25_over),
+            pct_private_coverage = mean(pct_private_coverage),
+            pct_public_coverage = mean(pct_public_coverage),
+            pct_black = mean(pct_black),
+            pct_married_households = mean(pct_married_households), 
+            pct_employed16_over = mean(pct_employed16_over),
+            pct_private_coverage_alone = mean(pct_private_coverage_alone),
+            log_avg_ann_count = mean(log_avg_ann_count),
+            sqrt_poverty_percent = mean(sqrt_poverty_percent),
+            sqrt_pct_no_hs18_24 = mean(sqrt_pct_no_hs18_24),
+            sqrt_pct_bach_deg18_24 = mean(sqrt_pct_bach_deg18_24),
+            sqrt_pct_public_coverage_alone = mean(sqrt_pct_public_coverage_alone),
+            log_pct_asian = mean(log_pct_asian),
+            sqrt_birth_rate = mean(sqrt_birth_rate),
+            inverse_med_income = mean(inverse_med_income),
+            log_study_per_cap = mean(log_study_per_cap),
+            log_avg_household_size = mean(log_avg_household_size),
+            sqrt_pct_unemployed16_over = mean(sqrt_pct_unemployed16_over),
+            log_other_race = mean(log_other_race),
+            log_pct_bach_deg25_over = mean(log_pct_bach_deg25_over),
+            log_pct_black = mean(log_pct_black)) %>% 
+  dplyr::select(-state)
+
 
 model_data_state_mean = 
   model_data %>% 
@@ -470,7 +516,6 @@ model_data_state_mean =
             pct_employed16_over = mean(pct_employed16_over),
             pct_private_coverage_alone = mean(pct_private_coverage_alone)) %>% 
   dplyr::select(-state)
-
 
 model_data_state_median = 
   model_data %>% 
@@ -735,15 +780,6 @@ plot(reg_summary_mean$bic ,xlab="Number of Variables ",ylab="BIC",type="l")
 forward gives clearest results::
 incidence_rate, pct_hs18_24, log_pct_bach_deg25_over, pct_married_households
 
-let's fit the model with the four best
-
-```{r}
-best_subset_model = lm(target_death_rate = incidence_rate + pct_hs18_24 + log_pct_bach_deg25_over
-                       + pct_married_households, data = )
-```
-
-
-
 
 Let's try lasso on the new transformed dataset
 
@@ -775,32 +811,6 @@ Lasso only removes 4 variables :(
 Will not try ridge because we do not want a model with all of the variables, just reduced in coefficient size
 
 
-```{r}
-cv_df =
-  crossv_mc(model_data_state_mean, 100) %>% 
-  mutate(train = map(train, as_tibble),
-         test = map(test, as_tibble))
-
-cv_df = 
-  cv_df %>% 
-  mutate(lin_mod = map(train, ~lm(target_death_rate ~ incidence_rate + inverse_med_income + median_age_female + 
-                      pct_hs18_24 + pct_hs25_over + pct_bach_deg25_over + sqrt_pct_unemployed16_over + 
-                      sqrt_birth_rate + log_pct_black + log_other_race, data = .x)),
-         rmse_test_lin_mod = map2_dbl(lin_mod, test, ~rmse(model = .x, data = .y)),
-         rmse_train_lin_mod = map2_dbl(lin_mod, train, ~rmse(model = .x, data = .y)))
-
-cv_df %>% 
-  dplyr::select(starts_with("rmse")) %>% 
-  gather(key = model, value = rmse) %>% 
-  mutate(model = str_replace(model, "rmse_", ""),
-         model = fct_inorder(model)) %>% 
-  ggplot(aes(x = model, y = rmse)) + geom_violin()
-
-mean(cv_df$rmse_train_lin_mod)
-mean(cv_df$rmse_test_lin_mod)
-
-```
-
 Quick summary on what's happening. Transformed data is performing best with 4 variables (via backward selection). 
 Untransformed data still looks like it's peforming better. 
 
@@ -812,10 +822,45 @@ to be performing better.
 Need to test these models against test data
 
 Four models to try::
-1) best subset transformed (v variables)
+1) best subset transformed (4 variables)
 2) best subset untransformed (5/6 variables)
-3) lasso transformed ()
+3) lasso transformed (many many variables - even try this?)
 4) lasso untransformed (11 variables)
 
 
+```{r}
+cv_df =
+  crossv_mc(model_data_state_mean_full, 100) %>% 
+  mutate(train = map(train, as_tibble),
+         test = map(test, as_tibble))
+
+cv_df = 
+  cv_df %>% 
+  mutate(subset_trans = map(train, ~lm(target_death_rate ~ incidence_rate + pct_hs18_24 + log_pct_bach_deg25_over
+                       + pct_married_households, data = .x)),
+         rmse_test_subset_trans = map2_dbl(subset_trans, test, ~rmse(model = .x, data = .y)),
+         rmse_train_subset_trans = map2_dbl(subset_trans, train, ~rmse(model = .x, data = .y)),
+         
+         subset_untrans = map(train, ~lm(target_death_rate ~ pct_bach_deg18_24 + med_income + pct_other_race
+                                         +  pct_bach_deg25_over + pct_private_coverage, data = .x)),
+         
+         rmse_test_subset_untrans = map2_dbl(subset_untrans, test, ~rmse(model = .x, data = .y)),
+         rmse_train_subset_untrans = map2_dbl(subset_untrans, train, ~rmse(model = .x, data = .y))
+         )
+
+cv_df %>% 
+  dplyr::select(starts_with("rmse")) %>% 
+  gather(key = model, value = rmse) %>% 
+  mutate(model = str_replace(model, "rmse_", ""),
+         model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse)) + geom_violin()
+
+mean(cv_df$rmse_test_subset_trans)
+mean(cv_df$rmse_train_subset_trans)
+
+mean(cv_df$rmse_test_subset_untrans)
+mean(cv_df$rmse_train_subset_untrans)
+
+## transformed is getting a better test rmse
+```
 
