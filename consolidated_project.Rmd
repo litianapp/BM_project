@@ -27,6 +27,8 @@ cancer_data = read_csv(file = "./data/Cancer_Registry.csv") %>%
   janitor::clean_names()
 ```
 
+#Data Exploration (County Level)
+
 Obtain summary statistics for all variables at the county level
 
 ```{r}
@@ -77,5 +79,581 @@ cor(reduced_clean)%>%
   corrplot(method = "circle", type = "upper", diag=FALSE)
 ```
 
+The main takeaways from the correlation plot is that there are moderate to strong correlations between variables that provide information on income, insurance, employment, and bachelor degree. This is to be expected since all the mentioned variables can be measures of SES. In addition, there is a strong correlation between black and white as well as between percentage of married and percent of married households 
 
-Now, lets observe the distributions of potential covariates and observe if transformations are needed
+Now, observe the distributions of potential covariates and observe if transformations are needed in the case our variables are skewed
+
+Create a function that plots and performs tranformations on the variables
+
+```{r warning = FALSE, message = FALSE}
+
+distribution = function(variable) {
+
+  reduced_clean = tibble(variable)
+  
+  reduced_clean%>%
+    ggplot(aes(variable))+
+    geom_histogram()
+}
+
+inspection = function(variable) {
+
+  reduced_clean = tibble(variable)
+
+  #Observe transformations
+
+  transformations = reduced_clean%>%
+    dplyr::select(variable)%>%
+    mutate(log_variable = log(variable),
+          sqrt_variable = sqrt(variable),
+          inverse_variable = 1 / variable)%>%
+    gather(key = type, value = value)
+  
+  a = transformations%>%
+    filter(type == "variable")%>%
+    ggplot(aes(value))+
+    geom_density()+
+    labs(x = "Original",
+        y = "Frequency")
+
+  b = transformations%>%
+    filter(type == "sqrt_variable")%>%
+    ggplot(aes(value))+
+    geom_density()+
+    labs(x = "Sqrt(Variable)",
+        y = "Frequency")
+
+  c = transformations%>%
+    filter(type == "inverse_variable")%>%
+    ggplot(aes(value))+
+    geom_density()+
+    labs(x = "Inverse(Variable)",
+        y = "Frequency")
+
+  d = transformations%>%
+    filter(type == "log_variable")%>%
+    ggplot(aes(value))+
+    geom_density()+
+    labs(x = "log(Variable)",
+        y = "Frequency")
+
+  (a + b) / (c + d)
+  
+}
+
+```
+
+###Distributions and Transformations
+
+Average annual count has one extreme outlier, making the distribution of the points to be right skewed. Log tranformation most reduces the skewness
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$avg_ann_count
+
+distribution(variable)
+inspection(variable)
+
+
+```
+
+The distribution of incidence rate seems to be appropriately clustered, with a few outliers. Transformations result in similar shapes as the original
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$incidence_rate
+
+distribution(variable)
+inspection(variable)
+
+
+```
+
+Median income is slighly right skewed and the inverse transformation reduces most of the skewness. Transformation also may not be necessary in this case
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$med_income
+
+distribution(variable)
+inspection(variable)
+
+
+```
+
+Poverty percent is slightly right skewed and the square root transformation reduces most of the skewness. Transformation also may not be necessary in this case
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$poverty_percent
+
+distribution(variable)
+inspection(variable)
+
+
+```
+
+Study per cap is highly right skewed and the log transformation reduces most of the skewness
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$study_per_cap
+
+distribution(variable)
+inspection(variable)
+
+
+```
+
+Median age for males has an appropriate shape and does not need transformation
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$median_age_male
+
+distribution(variable)
+inspection(variable)
+
+
+```
+
+Median age for females has an appropriate shape and does not need transformation
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$median_age_female
+
+distribution(variable)
+inspection(variable)
+
+
+```
+
+Average household size has some unusual values. A majority of the points are clustured around 2.5 and there is a slight skewness to the right. However, there are some outliers to the left that are close to 0. None of the transformations are useful - the log transformation removes the slight right skewness but we still see a another bump to the left 
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$avg_household_size
+
+distribution(variable)
+inspection(variable)
+
+
+```
+
+Percent married is slightly left skewed but none of the transformation perform better, in terms of skewness
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$percent_married
+
+distribution(variable)
+inspection(variable)
+
+```
+
+pct_no_hs18_24 is slightly right skewed and the square root transformation reduces most of the skewness. However, a transformation might not be necessary in this case 
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$pct_no_hs18_24
+
+
+distribution(variable)
+inspection(variable)
+
+
+```
+
+pct_hs18_24 is appropriately shaped 
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$pct_hs18_24
+
+
+distribution(variable)
+inspection(variable)
+
+```
+
+pct_bach_deg18_24 is right skewed. While the square root transformation reduces most of the skewness, it also creates a second peak close to zero. 
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$pct_bach_deg18_24
+
+
+distribution(variable)
+inspection(variable)
+
+
+```
+
+pct_hs25_over is very slightly left skewed and no transformation is necessary 
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$pct_hs25_over
+
+
+distribution(variable)
+inspection(variable)
+
+```
+
+pct_bach_deg25_over is right skewed and a log transformation best reduces the skewness 
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$pct_bach_deg25_over
+
+
+distribution(variable)
+inspection(variable)
+
+
+```
+
+pct_employed16_over is very slightly left skewed so no transformation is necessary
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$pct_employed16_over
+
+
+distribution(variable)
+inspection(variable)
+
+```
+
+pct_unemployed16_over is right skewed and a square root transformation works best to reduce skewness
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$pct_unemployed16_over
+
+
+distribution(variable)
+inspection(variable)
+
+
+```
+
+pct_private_coverage is appropriately shaped (very slight skewness) and no transformation is needed
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$pct_private_coverage
+
+
+distribution(variable)
+inspection(variable)
+
+```
+
+pct_private_coverage_alone is appropriately shaped and no transformation is needed
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$pct_private_coverage_alone
+
+
+distribution(variable)
+inspection(variable)
+
+```
+
+pct_emp_priv_coverage is appropriately shaped 
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$pct_emp_priv_coverage
+
+
+distribution(variable)
+inspection(variable)
+
+```
+
+pct_public_coverage is appropriately shaped 
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$pct_public_coverage
+
+
+distribution(variable)
+inspection(variable)
+
+```
+
+pct_public_coverage_alone is slightly skewed to the right and the square root transformation reduces the skewness. But a transformation may not be necessary in this case  
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$pct_public_coverage_alone
+
+
+distribution(variable)
+inspection(variable)
+
+
+```
+
+pct_white is left skewed and no transformation improves the distribution
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$pct_white
+
+
+distribution(variable)
+inspection(variable)
+
+```
+
+pct_black is right skewed. Although, log transformation best reduces the skewness, it creates an unusual shape where a majority of the points are concentrated towards the upper half of the curve
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$pct_black + 0.01
+
+
+distribution(variable)
+inspection(variable)
+
+
+```
+
+pct_asian is right skewed and a log transformation reduces the skewness
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$pct_asian + 0.01
+
+
+distribution(variable)
+inspection(variable)
+
+
+```
+
+pct_other_race is right skewed and a log transformation reduces the skewness
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$pct_other_race + 0.01
+
+
+distribution(variable)
+inspection(variable)
+
+```
+
+pct_married_households is appropriately shaped 
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$pct_married_households
+
+
+distribution(variable)
+inspection(variable)
+
+```
+
+birth_rate is slightly right skewed and square root transformation reduces the skewness. Although, the transformation might be unnecessary 
+
+```{r warning = FALSE, message = FALSE}
+
+variable = reduced_clean$birth_rate
+
+
+distribution(variable)
+inspection(variable)
+
+```
+
+
+Perform the aforementioned transformations
+
+```{r}
+
+model_data = 
+  cancer_data %>%
+  dplyr::select(-pct_some_col18_24) %>%
+  na.omit() %>%
+  dplyr::select(-c(binned_inc, median_age, avg_deaths_per_year, pop_est2015)) %>% 
+  mutate(log_avg_ann_count = log(avg_ann_count),
+         inverse_med_income = 1/(med_income),
+         sqrt_poverty_percent = sqrt(poverty_percent),
+         study_per_cap = study_per_cap + 0.01,
+         log_study_per_cap = log(study_per_cap),
+         log_avg_household_size = log(avg_household_size),
+         sqrt_pct_no_hs18_24 = sqrt(pct_no_hs18_24),
+         sqrt_pct_bach_deg18_24 = sqrt(pct_bach_deg18_24),
+         log_pct_bach_deg25_over = log(pct_bach_deg25_over),
+         sqrt_pct_unemployed16_over = sqrt(pct_unemployed16_over),
+         sqrt_pct_public_coverage_alone = sqrt(pct_public_coverage_alone),
+         pct_black = pct_black + 0.01,
+         log_pct_black = log(pct_black),
+         pct_asian = pct_asian + 0.01,
+         log_pct_asian = log(pct_asian),
+         pct_other_race = pct_other_race + 0.01,
+         log_other_race = log(pct_other_race),
+         sqrt_birth_rate = sqrt(birth_rate)) 
+
+```
+
+We are interested in creating a predictive model at the state level so we can aggregate the county data to obtain state level estimates (using mean)
+
+```{r}
+model_data_state = 
+  model_data %>% 
+  separate(geography, into = c("county", "state"), sep = ",") %>% 
+  group_by(state) %>% 
+  dplyr::select(-county) %>% 
+  summarise(avg_ann_count = mean(avg_ann_count),
+            incidence_rate = mean(incidence_rate),
+            poverty_percent = mean(poverty_percent),
+            pct_no_hs18_24 = mean(pct_no_hs18_24),
+            pct_bach_deg18_24 = mean(pct_bach_deg18_24),
+            pct_public_coverage_alone = mean(pct_public_coverage_alone),
+            pct_asian = mean(pct_asian),
+            birth_rate = mean(birth_rate),
+            med_income = mean(med_income),
+            study_per_cap = mean(study_per_cap),
+            median_age_male = mean(median_age_male),
+            avg_household_size = mean(avg_household_size),
+            pct_hs18_24 = mean(pct_hs18_24),
+            pct_hs25_over = mean(pct_hs25_over),
+            pct_unemployed16_over = mean(pct_unemployed16_over),
+            pct_emp_priv_coverage = mean(pct_emp_priv_coverage),
+            pct_white = mean(pct_white),
+            pct_other_race = mean(pct_other_race),
+            target_death_rate = mean(target_death_rate),
+            median_age_female = mean(median_age_female),
+            percent_married = mean(percent_married),
+            pct_bach_deg25_over = mean(pct_bach_deg25_over),
+            pct_private_coverage = mean(pct_private_coverage),
+            pct_public_coverage = mean(pct_public_coverage),
+            pct_black = mean(pct_black),
+            pct_married_households = mean(pct_married_households), 
+            pct_employed16_over = mean(pct_employed16_over),
+            pct_private_coverage_alone = mean(pct_private_coverage_alone),
+            log_avg_ann_count = mean(log_avg_ann_count),
+            sqrt_poverty_percent = mean(sqrt_poverty_percent),
+            sqrt_pct_no_hs18_24 = mean(sqrt_pct_no_hs18_24),
+            sqrt_pct_bach_deg18_24 = mean(sqrt_pct_bach_deg18_24),
+            sqrt_pct_public_coverage_alone = mean(sqrt_pct_public_coverage_alone),
+            log_pct_asian = mean(log_pct_asian),
+            sqrt_birth_rate = mean(sqrt_birth_rate),
+            inverse_med_income = mean(inverse_med_income),
+            log_study_per_cap = mean(log_study_per_cap),
+            log_avg_household_size = mean(log_avg_household_size),
+            sqrt_pct_unemployed16_over = mean(sqrt_pct_unemployed16_over),
+            log_other_race = mean(log_other_race),
+            log_pct_bach_deg25_over = mean(log_pct_bach_deg25_over),
+            log_pct_black = mean(log_pct_black)) %>% 
+  dplyr::select(-state)
+
+```
+
+#Modeling (State level)
+
+1. As a starting point, we are interested in what model we would obtain using the untransformed variables
+
+Create the subset dataset with only the untransformed variables
+
+```{r}
+
+untransformed_model_data_state = 
+  model_data_state %>% 
+  dplyr::select(-starts_with("log"), -starts_with("inverse"), -starts_with("sqrt"))
+```
+
+Our full model has 27 potential predictors - select model based on criterion procedures
+
+```{r}
+
+regfit.full = regsubsets(target_death_rate ~ ., data = untransformed_model_data_state, nvmax = 27)
+reg.summary = summary(regfit.full)
+
+par(mfrow=c(2, 2))
+plot(reg.summary$rss ,xlab="Number of Variables ",ylab="RSS", type="l")
+
+plot(reg.summary$adjr2 ,xlab="Number of Variables ",ylab="Adjusted RSq",type="l")
+
+plot(reg.summary$cp,xlab="Number of Variables ",ylab="Cp",type="l")
+
+plot(reg.summary$bic ,xlab="Number of Variables ",ylab="BIC",type="l")
+
+
+best <- function(model, ...) 
+{
+  subsets <- regsubsets(formula(model), model.frame(model), nvmax=27, ...)
+  subsets <- with(summary(subsets),
+                  cbind(p = as.numeric(rownames(which)), which, rss, rsq, adjr2, cp, bic))
+  
+  return(subsets)
+}  
+
+
+untranformed_full = lm(target_death_rate ~ . , data = untransformed_model_data_state)
+round(best(untranformed_full, nbest = 1), 3)
+```
+
+We arrive at a 10 predictor model: incidence_rate, pct_asian, birth_rate, med_income, avg_household_size, pct_other_race, percent_married, pct_bach_deg25_over, pct_private_coverage, and pct_married_households. The 10 predictor model is the smallest model that has a Cp less than the number of predictors. Furthermore, the adjusted Rsquared is not substantially different from the maximum adjusted Rsquared (0.868 vs. 0.891) and the BIC is not substantially difference from the minimum BIC (-72.642 vs. -71.271)  
+
+Now, determine if there are collinearity issues
+
+```{r}
+
+selected_untransformed  = lm(target_death_rate ~ incidence_rate + pct_asian + birth_rate + 
+                               med_income + avg_household_size + pct_other_race + percent_married +
+                               pct_bach_deg25_over + pct_private_coverage + pct_married_households,
+                             data = untransformed_model_data_state)
+
+vif(selected_untransformed)
+
+```
+
+The following variables have a VIF > 5: med_income, avg_household_size, percent_married, pct_private_coverage, and pct_married_households. We can find the correlations to determine what variables should remain in the model
+
+```{r}
+
+correlation_check = untransformed_model_data_state %>%
+  dplyr::select(med_income, avg_household_size, percent_married, pct_private_coverage, 
+                pct_married_households)
+
+par(mfrow=c(1, 1))
+cor(correlation_check)%>%
+  corrplot(method = "square", addCoef.col = "black", tl.col="black", tl.srt=45, insig = "blank", 
+         diag=FALSE, number.cex = .7)
+```
+
+We find that percent_married is highly correlated to pct_married_households, med_income is moderately correlated to pct_private_coverage, and the rest of the correlations are fairly low. We choose to keep percent_married (its correlations to other variables are lower than pct_married_households' correlations to the same variabes), med_income (its correlations to other variables are lower than pct_private_coverage' correlations to the same variabes), and avg_household_size (VIF = 5.07) in the model
+
+```{r}
+
+final_untransformed_model  = lm(target_death_rate ~ incidence_rate + pct_asian + birth_rate + 
+                               med_income + avg_household_size + pct_other_race + percent_married +
+                               pct_bach_deg25_over,
+                             data = untransformed_model_data_state)
+
+vif(final_untransformed_model)
+```
+
+We arrive at a 8 predictor model with no collinearity issues: incidence_rate, pct_asian, birth_rate, med_income, avg_household_size, pct_other_race, percent_married, and pct_bach_deg25_over
+
+
+2. Now, that we have a sense of the important variables, we can find a predictive model at the state level using the transformed variables
+
+Create the subset dataset with only the transformed variables
+
+```{r}
+
+
+```
+
