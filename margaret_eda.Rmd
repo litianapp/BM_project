@@ -61,8 +61,9 @@ Figure out if there are variables that are highly correlated/provide the same in
 
 ```{r}
 continuous_data = clean_cancer_data%>%
-  select(-c(binned_inc, geography))
+  dplyr::select(-c(binned_inc, geography))
 
+par(mfrow=c(1,1))
 cor(continuous_data)%>%
   corrplot(method = "circle", diag=FALSE)
 ```

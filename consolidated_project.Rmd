@@ -1,0 +1,81 @@
+---
+title: "Consolidated Code Report"
+author: "Margaret Gacheru"
+date: "December 16, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+
+library(tidyverse)
+library(corrplot)
+library(patchwork)
+library(HH)
+library(leaps)
+library(modelr)
+
+```
+
+
+Load the cancer registry data
+
+```{r message = FALSE, warning = FALSE}
+
+cancer_data = read_csv(file = "./data/Cancer_Registry.csv") %>% 
+  janitor::clean_names()
+```
+
+Obtain summary statistics for all variables at the county level
+
+```{r}
+
+numerical = cancer_data%>%
+  dplyr::select(-c(binned_inc, geography))
+
+Minimum = sapply(numerical, min, na.rm = 'TRUE')
+Maximum = sapply(numerical, max, na.rm = 'TRUE')
+Mean = sapply(numerical, mean, na.rm = 'TRUE')
+Median = sapply(numerical, median, na.rm = 'TRUE')
+SD = sapply(numerical, sd, na.rm = 'TRUE')
+IQR = sapply(numerical, IQR, na.rm='TRUE')
+Size = sapply(numerical, length)
+Missing = sapply(numerical, function(x) sum(is.na(x)))
+
+rbind(Minimum, Maximum, Mean, SD, Median, IQR, Size, Missing) %>%
+  round(digits = 2)%>%t()%>%broom::tidy()
+
+```
+
+Note that pct_some_col18_24 has 2285 out of 3047 missing values (75%), pct_employed16_over has 152 out of 3047 missing values (5%), and pct_private_coverage_alone has 609 out of 3047 missing values (20%). Some college has too many missing values so it might be advisable not include it in the list of potential covariates
+
+Since pct_some_col18_24 had a high percentage of missing data, remove the variable from the dataset. Furthermore, remove observations that have missing values for pct_private_coverage_alone and pct_employed16_over. 
+
+```{r}
+
+clean_cancer_data = cancer_data%>%
+  dplyr::select(-pct_some_col18_24)%>%
+  na.omit()
+
+```
+
+From literature review and preliminary discussions, remove binned_inc, pct_some_col_18_24, median_age, geography, avg_deaths_per_year, and pop_est_2015 from the dataset
+
+```{r}
+
+reduced_clean = clean_cancer_data%>%
+  dplyr::select(-c(binned_inc, geography, median_age, avg_deaths_per_year, pop_est2015))
+```
+
+Next, find out if there are variables that are highly correlated/provide the same information
+
+```{r}
+
+par(mfrow=c(1,1))
+cor(reduced_clean)%>%
+  corrplot(method = "circle", type = "upper", diag=FALSE)
+```
+
+
+Now, lets observe the distributions of potential covariates and observe if transformations are needed
