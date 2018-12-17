@@ -1,5 +1,5 @@
 ---
-title: "Consolidated Code Report"
+title: "Predicting Cancer Mortality Rate by State"
 author: "Margaret Gacheru"
 date: "December 16, 2018"
 output: html_document
