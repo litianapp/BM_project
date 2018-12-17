@@ -777,31 +777,43 @@ Lasso only eliminates five variables: log_avg_ann_count, median_age_female, sqrt
 
 Compare the three models to determine which has the best predictive ability
 
+Split the data into training and tesing sets
+
 ```{r}
 cv_df =
   crossv_mc(model_data_state, 100) %>% 
   mutate(train = map(train, as_tibble),
          test = map(test, as_tibble))
 
+```
+
+
+Calculate MSE for the three models (train and test)
+
+```{r}
 cv_df = 
   cv_df %>% 
-  mutate(subset_trans_large = map(train, ~lm(target_death_rate ~ log_pct_black + pct_married_households +
-                                         log_pct_bach_deg25_over + pct_private_coverage + pct_hs18_24 + 
-                                         log_other_race + incidence_rate,  data = .x)),
-         rmse_test_subset_trans_large = map2_dbl(subset_trans_large, test, ~rmse(model = .x, data = .y)),
-         rmse_train_subset_trans_large = map2_dbl(subset_trans_large, train, ~rmse(model = .x, data = .y)),
+  mutate(transformed = map(train, ~lm(target_death_rate ~ incidence_rate + log_avg_household_size + pct_hs18_24 +
+                               pct_bach_deg25_over + pct_white + pct_married_households + 
+                               log_study_per_cap + log_pct_black,  data = .x)),
+         rmse_test_transformed = map2_dbl(transformed, test, ~rmse(model = .x, data = .y)),
+         rmse_train_transformed = map2_dbl(transformed, train, ~rmse(model = .x, data = .y)),
          
          
-         subset_trans_small = map(train, ~lm(target_death_rate ~ incidence_rate + pct_hs18_24 + log_pct_bach_deg25_over
-                       + pct_married_households, data = .x)),
-         rmse_test_subset_trans_small = map2_dbl(subset_trans_small, test, ~rmse(model = .x, data = .y)),
-         rmse_train_subset_trans_small = map2_dbl(subset_trans_small, train, ~rmse(model = .x, data = .y)),
+         untransformed = map(train, ~lm(target_death_rate ~ incidence_rate + pct_asian + birth_rate + 
+                               med_income + avg_household_size + pct_other_race + percent_married +
+                               pct_bach_deg25_over, data = .x)),
+         rmse_test_untransformed = map2_dbl(untransformed, test, ~rmse(model = .x, data = .y)),
+         rmse_train_untransformed = map2_dbl(untransformed, train, ~rmse(model = .x, data = .y)),
          
-         subset_untrans = map(train, ~lm(target_death_rate ~ pct_bach_deg18_24 + med_income + pct_other_race
-                                         +  pct_bach_deg25_over + pct_private_coverage, data = .x)),
-         
-         rmse_test_subset_untrans = map2_dbl(subset_untrans, test, ~rmse(model = .x, data = .y)),
-         rmse_train_subset_untrans = map2_dbl(subset_untrans, train, ~rmse(model = .x, data = .y))
+         lasso = map(train, ~lm(target_death_rate ~ incidence_rate + inverse_med_income + sqrt_poverty_percent +
+                                median_age_male + log_avg_household_size + percent_married + pct_hs18_24 +
+                                sqrt_pct_bach_deg18_24 + pct_hs25_over + pct_bach_deg25_over + pct_employed16_over +
+                                sqrt_pct_unemployed16_over + pct_private_coverage + pct_emp_priv_coverage +
+                                sqrt_pct_public_coverage_alone + pct_white + pct_married_households + sqrt_birth_rate +
+                                log_study_per_cap + log_pct_black+log_pct_asian +log_other_race, data = .x)),
+         rmse_test_lasso = map2_dbl(lasso, test, ~rmse(model = .x, data = .y)),
+         rmse_train_lasso = map2_dbl(lasso, train, ~rmse(model = .x, data = .y))
          )
 
 cv_df %>% 
@@ -809,20 +821,36 @@ cv_df %>%
   gather(key = model, value = rmse) %>% 
   mutate(model = str_replace(model, "rmse_", ""),
          model = fct_inorder(model)) %>% 
-  ggplot(aes(x = model, y = rmse)) + geom_violin()
+  filter(model %in% c("train_transformed", "train_untransformed", "train_lasso"))%>%
+  ggplot(aes(x = model, y = rmse)) + geom_violin()+
+  labs(title = "Comparison of MSE using Training Data")
 
-mean(cv_df$rmse_test_subset_trans_large)
-mean(cv_df$rmse_train_subset_trans_large)
+cv_df %>% 
+  dplyr::select(starts_with("rmse")) %>% 
+  gather(key = model, value = rmse) %>% 
+  mutate(model = str_replace(model, "rmse_", ""),
+         model = fct_inorder(model)) %>% 
+  filter(model %in% c("test_transformed", "test_untransformed", "test_lasso"))%>%
+  ggplot(aes(x = model, y = rmse)) + geom_violin()+
+  labs(title = "Comparison of MSE using Testing Data")
 
-mean(cv_df$rmse_test_subset_trans_small)
-mean(cv_df$rmse_train_subset_trans_small)
+cv_df %>% 
+  dplyr::select(starts_with("rmse")) %>% 
+  gather(key = model, value = rmse) %>% 
+  mutate(model = str_replace(model, "rmse_", ""),
+         model = fct_inorder(model)) %>% 
+  filter(model %in% c("train_transformed", "test_transformed"))%>%
+  ggplot(aes(x = model, y = rmse)) + geom_violin()+
+  labs(title = "Comparison of Train and Test MSE for Transformed Variables")
+
+mean(cv_df$rmse_test_transformed)
+mean(cv_df$rmse_train_transformed)
+
+mean(cv_df$rmse_test_untransformed)
+mean(cv_df$rmse_train_untransformed)
 
 
-mean(cv_df$rmse_test_subset_untrans)
-mean(cv_df$rmse_train_subset_untrans)
-
-
-## transformed is getting a better test rmse
-
+mean(cv_df$rmse_test_lasso)
+mean(cv_df$rmse_train_lasso)
 
 ```
