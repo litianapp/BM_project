@@ -46,7 +46,7 @@ Size = sapply(numerical, length)
 Missing = sapply(numerical, function(x) sum(is.na(x)))
 
 rbind(Minimum, Maximum, Mean, SD, Median, IQR, Size, Missing) %>%
-  round(digits = 2)%>%t()%>%broom::tidy()
+  round(digits = 2)%>%t()
 
 ```
 
@@ -650,10 +650,63 @@ We arrive at a 8 predictor model with no collinearity issues: incidence_rate, pc
 
 2. Now, that we have a sense of the important variables, we can find a predictive model at the state level using the transformed variables
 
-Create the subset dataset with only the transformed variables
+Create a subset dataset with only the transformed variables
 
 ```{r}
 
+transformed_model_data_state = model_data_state%>%
+  dplyr::select(target_death_rate, log_avg_ann_count, incidence_rate, inverse_med_income, sqrt_poverty_percent,
+                median_age_male, median_age_female, log_avg_household_size, percent_married,
+                sqrt_pct_no_hs18_24, pct_hs18_24, sqrt_pct_bach_deg18_24, pct_hs25_over, pct_bach_deg25_over,
+                pct_employed16_over, sqrt_pct_unemployed16_over, pct_private_coverage, pct_private_coverage_alone,
+                pct_emp_priv_coverage, pct_public_coverage, sqrt_pct_public_coverage_alone, pct_white,
+                pct_married_households, sqrt_birth_rate, log_study_per_cap, log_pct_black, log_pct_asian, log_other_race)
 
 ```
 
+Our full model has 27 potential predictors - select model based on criterion procedures
+
+```{r}
+
+regfit.full = regsubsets(target_death_rate ~ ., data = transformed_model_data_state, nvmax = 27)
+reg.summary = summary(regfit.full)
+
+par(mfrow=c(2, 2))
+plot(reg.summary$rss ,xlab="Number of Variables ",ylab="RSS", type="l")
+
+plot(reg.summary$adjr2 ,xlab="Number of Variables ",ylab="Adjusted RSq",type="l")
+
+plot(reg.summary$cp,xlab="Number of Variables ",ylab="Cp",type="l")
+
+plot(reg.summary$bic ,xlab="Number of Variables ",ylab="BIC",type="l")
+
+
+best <- function(model, ...) 
+{
+  subsets <- regsubsets(formula(model), model.frame(model), nvmax = 27, ...)
+  subsets <- with(summary(subsets),
+                  cbind(p = as.numeric(rownames(which)), which, rss, rsq, adjr2, cp, bic))
+  
+  return(subsets)
+}  
+
+
+tranformed_full = lm(target_death_rate ~ . , data = transformed_model_data_state)
+round(best(tranformed_full, nbest = 1), 3)
+```
+
+We arrive at a  predictor model: incidence_rate, log_avg_household_size, pct_hs18_24, pct_bach_deg25_over, pct_white, pct_married_households, log_study_per_cap, and log_pct_black. The 8 predictor model is the smallest model that has a Cp less than the number of parameters. Furthermore, the adjusted Rsquared is not significantly different from the maximum adjusted Rsquared (0.858 vs. 0.893) and the BIC is not substantially different from teh minimum BIC (-72.921 vs. -74.161). 
+
+Now, determine if there are collinearity issues
+
+```{r}
+
+selected_transformed  = lm(target_death_rate ~ incidence_rate + log_avg_household_size + pct_hs18_24 +
+                               pct_bach_deg25_over + pct_white + pct_married_households + 
+                               log_study_per_cap + log_pct_black, data = transformed_model_data_state)
+
+vif(selected_transformed)
+
+```
+
+There are no variables with VIF > 5. So, we arrive at a 8 predictor model with no collinearity issues: incidence_rate, pct_asian, birth_rate, med_income, avg_household_size, pct_other_race, percent_married, and pct_bach_deg25_over
