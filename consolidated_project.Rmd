@@ -1,7 +1,7 @@
 ---
 title: "Predicting Cancer Mortality Rate by State"
-author: "Margaret Gacheru"
-date: "December 16, 2018"
+author: "Margaret Gacheru (mg3861), Annie Clark (alc2279), Keyanna Davis (kd2640), Tian Li (tl2882)"
+date: "December 17, 2018"
 output: html_document
 ---
 
@@ -15,7 +15,6 @@ library(patchwork)
 library(HH)
 library(leaps)
 library(modelr)
-
 ```
 
 
