@@ -629,7 +629,7 @@ There are no variables with VIF > 5. So, we arrive at a 8 predictor model with n
 ```{r}
 
 par(mfrow=c(2,2))
-plot(selected_transformed)
+plot(final_transformed)
 ```
 
 
@@ -638,7 +638,7 @@ Check for outliers, leverage, and influential points
 ```{r}
 
 #find outlier in Y
-stu_res = rstandard(selected_transformed)
+stu_res = rstandard(final_transformed)
 outliers_y = stu_res[abs(stu_res)>2.5]
 
 outliers_y
@@ -649,7 +649,7 @@ There are no outliers in y
 
 ```{r}
 
-distance = cooks.distance(selected_model)
+distance = cooks.distance(final_transformed)
 distance[distance > 0.5]
 
 ```
