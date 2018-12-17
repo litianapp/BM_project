@@ -742,3 +742,87 @@ vif(final_untransformed_model)
 ```
 
 We arrive at a 8 predictor model with no collinearity issues: incidence_rate, pct_asian, birth_rate, med_income, avg_household_size, pct_other_race, percent_married, and pct_bach_deg25_over
+
+
+2. Lasso Model
+
+```{r}
+
+attach(transformed_model_data_state)
+
+library(glmnet)
+test.mat = model.matrix(target_death_rate ~ ., data = transformed_model_data_state)[, -1]
+lasso.mod = glmnet(test.mat, target_death_rate, alpha = 1)
+set.seed(1)
+cv.out = cv.glmnet(test.mat,target_death_rate,alpha=1)
+par(mfrow=c(1, 1))
+plot(cv.out)
+
+bestlam = cv.out$lambda.min
+bestlam
+
+out = glmnet (test.mat, target_death_rate, alpha=1)
+lasso.coef = predict (out, type="coefficients", s= bestlam)
+lasso.coef
+
+
+detach(transformed_model_data_state)
+
+```
+
+Lasso only eliminates five variables: log_avg_ann_count, median_age_female, sqrt_pct_no_hs18_24, pct_private_coverage_alone, and pct_public_coverage
+
+
+#Model Validation
+
+Compare the three models to determine which has the best predictive ability
+
+```{r}
+cv_df =
+  crossv_mc(model_data_state, 100) %>% 
+  mutate(train = map(train, as_tibble),
+         test = map(test, as_tibble))
+
+cv_df = 
+  cv_df %>% 
+  mutate(subset_trans_large = map(train, ~lm(target_death_rate ~ log_pct_black + pct_married_households +
+                                         log_pct_bach_deg25_over + pct_private_coverage + pct_hs18_24 + 
+                                         log_other_race + incidence_rate,  data = .x)),
+         rmse_test_subset_trans_large = map2_dbl(subset_trans_large, test, ~rmse(model = .x, data = .y)),
+         rmse_train_subset_trans_large = map2_dbl(subset_trans_large, train, ~rmse(model = .x, data = .y)),
+         
+         
+         subset_trans_small = map(train, ~lm(target_death_rate ~ incidence_rate + pct_hs18_24 + log_pct_bach_deg25_over
+                       + pct_married_households, data = .x)),
+         rmse_test_subset_trans_small = map2_dbl(subset_trans_small, test, ~rmse(model = .x, data = .y)),
+         rmse_train_subset_trans_small = map2_dbl(subset_trans_small, train, ~rmse(model = .x, data = .y)),
+         
+         subset_untrans = map(train, ~lm(target_death_rate ~ pct_bach_deg18_24 + med_income + pct_other_race
+                                         +  pct_bach_deg25_over + pct_private_coverage, data = .x)),
+         
+         rmse_test_subset_untrans = map2_dbl(subset_untrans, test, ~rmse(model = .x, data = .y)),
+         rmse_train_subset_untrans = map2_dbl(subset_untrans, train, ~rmse(model = .x, data = .y))
+         )
+
+cv_df %>% 
+  dplyr::select(starts_with("rmse")) %>% 
+  gather(key = model, value = rmse) %>% 
+  mutate(model = str_replace(model, "rmse_", ""),
+         model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse)) + geom_violin()
+
+mean(cv_df$rmse_test_subset_trans_large)
+mean(cv_df$rmse_train_subset_trans_large)
+
+mean(cv_df$rmse_test_subset_trans_small)
+mean(cv_df$rmse_train_subset_trans_small)
+
+
+mean(cv_df$rmse_test_subset_untrans)
+mean(cv_df$rmse_train_subset_untrans)
+
+
+## transformed is getting a better test rmse
+
+
+```
