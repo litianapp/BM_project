@@ -613,11 +613,11 @@ Now, determine if there are collinearity issues
 
 ```{r}
 
-selected_transformed  = lm(target_death_rate ~ incidence_rate + log_avg_household_size + pct_hs18_24 +
+final_transformed  = lm(target_death_rate ~ incidence_rate + log_avg_household_size + pct_hs18_24 +
                                pct_bach_deg25_over + pct_white + pct_married_households + 
                                log_study_per_cap + log_pct_black, data = transformed_model_data_state)
 
-vif(selected_transformed)
+vif(final_transformed)
 
 ```
 
@@ -853,4 +853,7 @@ mean(cv_df$rmse_train_untransformed)
 mean(cv_df$rmse_test_lasso)
 mean(cv_df$rmse_train_lasso)
 
+
 ```
+
+Our proposed model with transformed variable has the best predictive abilitity (lowest test MSE)
